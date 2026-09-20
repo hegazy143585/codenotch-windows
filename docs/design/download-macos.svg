@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="244" height="56" viewBox="0 0 244 56" role="img" aria-label="Download for macOS">
+  <title>Download for macOS</title>
+  <!-- The notch's own black, with the ring track as its edge — sampled from
+       Palette rather than picked, so the button reads as part of the app. -->
+  <rect x="0.75" y="0.75" width="242.5" height="54.5" rx="13.25"
+        fill="#000000" stroke="#303030" stroke-width="1.5"/>
+  <!-- A tray with an arrow coming down into it. Deliberately not the Apple
+       logo: that mark is Apple's, and a download button is not a place to
+       spend somebody else's trademark. -->
+  <g stroke="#00FF88" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M26 17.5v13.5"/>
+    <path d="M20.5 25.5 26 31l5.5-5.5"/>
+    <path d="M19 35.5v2.2a2.3 2.3 0 0 0 2.3 2.3h9.4a2.3 2.3 0 0 0 2.3-2.3v-2.2"/>
+  </g>
+  <text x="48" y="33.5"
+        font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="16" font-weight="600" fill="#FFFFFF">Download for macOS</text>
+</svg>
