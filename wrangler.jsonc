@@ -1,0 +1,12 @@
+﻿{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "codenotch",
+  "compatibility_date": "2026-09-18",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "cloudflare"
+  }
+}
+
