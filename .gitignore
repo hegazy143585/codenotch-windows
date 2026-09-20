@@ -7,3 +7,5 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 .swiftpm/
+
+cloudflare/*.zip
