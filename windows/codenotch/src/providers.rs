@@ -166,11 +166,18 @@ static OPENCODE: Simple = Simple {
     load: crate::opencode::load_persisted, start: crate::opencode::start, refresh: crate::opencode::request_refresh,
 };
 
+/// api.github.com/copilot_internal/user with the GitHub CLI token (copilot.rs). Internal endpoint.
+static COPILOT: Simple = Simple {
+    id: crate::copilot::ID, name: "GitHub Copilot", glyph: "Gh", page_url: "https://github.com/settings/copilot",
+    has_usage: true, activity: ActivitySupport::NotSupported,
+    load: crate::copilot::load_persisted, start: crate::copilot::start, refresh: crate::copilot::request_refresh,
+};
+
 /// The API pollers read every 5 min while idle; two missed polls plus slack
 const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
-pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &OLLAMA_CLOUD, &GLM, &OPENCODE];
+pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &OLLAMA_CLOUD, &GLM, &OPENCODE, &COPILOT];
 
 pub fn find(id: &str) -> Option<&'static dyn Provider> {
     REGISTRY.iter().copied().find(|p| p.id() == id)
@@ -498,12 +505,12 @@ mod tests {
     #[test]
     fn installed_providers_keep_registry_order() {
         let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "ollama-cloud", "glm", "opencode"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "ollama-cloud", "glm", "opencode", "copilot"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
-        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("ollama-cloud", snap("absent")), ("glm", snap("absent")), ("opencode", snap("absent"))]);
+        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("ollama-cloud", snap("absent")), ("glm", snap("absent")), ("opencode", snap("absent")), ("copilot", snap("absent"))]);
         let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }
