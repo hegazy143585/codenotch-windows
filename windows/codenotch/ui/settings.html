@@ -39,24 +39,24 @@
   <p class="sub" id="ver"></p>
   <div id="welcome"></div>
 
-  <h2>Providers</h2>
-  <p class="sub">Switch a provider off to hide its cell. The arrows set the order from top to bottom.</p>
+  <h2 data-t>Providers</h2>
+  <p class="sub" data-t>Switch a provider off to hide its cell. The arrows set the order from top to bottom.</p>
   <div class="card" id="providers"></div>
 
-  <h2>Keys Codenotch keeps</h2>
-  <p class="sub">Stored in Windows Credential Manager for your account, never in a file and never shown again.</p>
+  <h2 data-t>Keys Codenotch keeps</h2>
+  <p class="sub" data-t>Stored in Windows Credential Manager for your account, never in a file and never shown again.</p>
   <div class="card">
     <div class="row">
-      <div class="grow"><div class="name">Ollama Cloud API key</div><div class="state" id="ollamaState"></div></div>
+      <div class="grow"><div class="name" data-t>Ollama Cloud API key</div><div class="state" id="ollamaState"></div></div>
     </div>
     <div class="row">
-      <input type="password" id="ollamaKey" placeholder="Paste a key from ollama.com/settings/keys" autocomplete="off">
-      <button id="ollamaSave" class="primary">Save</button>
-      <button id="ollamaRemove">Remove</button>
+      <input type="password" id="ollamaKey" placeholder="Paste a key from ollama.com/settings/keys" data-tp autocomplete="off">
+      <button id="ollamaSave" class="primary" data-t>Save</button>
+      <button id="ollamaRemove" data-t>Remove</button>
     </div>
   </div>
 
-  <h2>Signed-in sessions</h2>
+  <h2 data-t>Signed-in sessions</h2>
   <div class="card">
     <div class="row">
       <div class="grow"><div class="name">Perplexity</div><div class="state" id="pplxState"></div></div>
@@ -64,35 +64,35 @@
     </div>
   </div>
 
-  <h2>Claude Code</h2>
+  <h2 data-t>Claude Code</h2>
   <div class="card">
     <div class="row">
-      <div class="grow"><div class="name">Hooks</div><div class="state" id="hooksState"></div></div>
+      <div class="grow"><div class="name" data-t>Hooks</div><div class="state" id="hooksState"></div></div>
       <button id="hooks"></button>
     </div>
   </div>
 
-  <h2>Updates</h2>
+  <h2 data-t>Updates</h2>
   <div class="card">
     <div class="row">
-      <div class="grow"><div class="name">Codenotch updates</div><div class="state" id="updState"></div></div>
-      <button id="updCheck">Check now</button>
-      <button id="updInstall" class="primary" style="display:none">Install</button>
+      <div class="grow"><div class="name" data-t>Codenotch updates</div><div class="state" id="updState"></div></div>
+      <button id="updCheck" data-t>Check now</button>
+      <button id="updInstall" class="primary" style="display:none" data-t>Install</button>
     </div>
-    <div class="row"><label class="switch grow"><input type="checkbox" id="updAuto"> Check for updates every 6 hours (installing always asks first)</label></div>
+    <div class="row"><label class="switch grow"><input type="checkbox" id="updAuto"> <span data-t>Check for updates every 6 hours (installing always asks first)</span></label></div>
   </div>
 
-  <h2>General</h2>
+  <h2 data-t>General</h2>
   <div class="card">
     <div class="row">
-      <div class="grow name">Language</div>
+      <div class="grow name" data-t>Language</div>
       <select id="lang">
-        <option value="auto">Follow system</option><option value="en">English</option>
+        <option value="auto" data-t>Follow system</option><option value="en">English</option><option value="ar">العربية</option>
         <option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option>
       </select>
     </div>
-    <div class="row"><label class="switch grow"><input type="checkbox" id="hover"> Show the notch only when the cursor reaches the screen edge</label></div>
-    <div class="row"><label class="switch grow"><input type="checkbox" id="autostart"> Start with Windows</label></div>
+    <div class="row"><label class="switch grow"><input type="checkbox" id="hover"> <span data-t>Show the notch only when the cursor reaches the screen edge</span></label></div>
+    <div class="row"><label class="switch grow"><input type="checkbox" id="autostart"> <span data-t>Start with Windows</span></label></div>
   </div>
 </main>
 <div id="msg"></div>
@@ -101,6 +101,37 @@ const invoke = window.__TAURI__.core.invoke;
 const listen = window.__TAURI__.event.listen;
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 const $=id=>document.getElementById(id);
+/* Arabic for this page (W-13). Keys are the English text; anything missing stays English.
+   Provider notes come from the providers and stay as they are. */
+const AR={
+ 'Providers':'المزوّدون','Switch a provider off to hide its cell. The arrows set the order from top to bottom.':'أوقف مزوّدًا لإخفاء خانته. الأسهم تحدد الترتيب من الأعلى إلى الأسفل.',
+ 'Keys Codenotch keeps':'المفاتيح التي يحتفظ بها Codenotch','Stored in Windows Credential Manager for your account, never in a file and never shown again.':'تُحفظ في مدير بيانات الاعتماد في Windows لحسابك، ولا تُكتب في ملف ولا تُعرض مرة أخرى.',
+ 'Ollama Cloud API key':'مفتاح Ollama Cloud','Save':'حفظ','Remove':'إزالة','Paste a key from ollama.com/settings/keys':'الصق مفتاحًا من ollama.com/settings/keys',
+ 'Signed-in sessions':'الجلسات المسجّلة','Claude Code':'Claude Code','Hooks':'الروابط','Updates':'التحديثات','Codenotch updates':'تحديثات Codenotch',
+ 'Check now':'تحقق الآن','Install':'تثبيت','Check for updates every 6 hours (installing always asks first)':'التحقق من التحديثات كل 6 ساعات (التثبيت يطلب موافقتك دائمًا)',
+ 'General':'عام','Language':'اللغة','Follow system':'حسب النظام','Show the notch only when the cursor reaches the screen edge':'إظهار الشريط فقط عند وصول المؤشر إلى حافة الشاشة','Start with Windows':'التشغيل مع Windows',
+ 'Version':'الإصدار','Welcome':'مرحبًا','Got it':'فهمت',
+ 'Codenotch lives at the right edge of your screen. Move the cursor to the edge to see how much of each AI tool\'s limit is used, when it resets, and which tool is working or waiting for you.':'يعيش Codenotch على الحافة اليمنى لشاشتك. حرّك المؤشر إلى الحافة لترى كم استُخدم من حد كل أداة ذكاء اصطناعي، ومتى يُعاد ضبطه، وأي أداة تعمل أو تنتظرك.',
+ 'It reads what your tools already store on this PC. Tools that are not installed stay hidden. Below you can hide or reorder providers, add keys, and install the Claude Code hooks for exact live status.':'يقرأ ما تحفظه أدواتك على هذا الجهاز. الأدوات غير المثبتة تبقى مخفية. يمكنك بالأسفل إخفاء المزوّدين أو إعادة ترتيبهم، وإضافة مفاتيح، وتثبيت روابط Claude Code لحالة مباشرة دقيقة.',
+ 'Not found on this PC':'غير موجود على هذا الجهاز','Connected':'متصل','Connected · last reading is old':'متصل · آخر قراءة قديمة','Sign-in needed':'يلزم تسجيل الدخول',
+ 'Error — see the note':'خطأ — راجع الملاحظة','Signed in · nothing metered':'مسجّل · لا شيء يُقاس','Unknown':'غير معروف',
+ 'Not connected — see Signed-in sessions':'غير متصل — راجع الجلسات المسجّلة','No API key — see Keys':'لا يوجد مفتاح — راجع المفاتيح',' · no quota to read':' · لا توجد حصة لقراءتها',
+ 'A key is stored':'يوجد مفتاح محفوظ','No key stored (the OLLAMA_API_KEY environment variable also works)':'لا يوجد مفتاح محفوظ (يعمل متغير البيئة OLLAMA_API_KEY أيضًا)',
+ 'Connected — read inside Codenotch’s own browser window':'متصل — يُقرأ داخل نافذة المتصفح الخاصة بـ Codenotch','Not connected':'غير متصل','Disconnect':'فصل','Connect…':'ربط…',
+ 'Installed — Claude’s working / waiting state is exact':'مثبتة — حالة Claude (يعمل / ينتظر) دقيقة','Not installed — Claude’s state is estimated':'غير مثبتة — حالة Claude تقديرية','Uninstall':'إزالة التثبيت',
+ 'Not checked yet':'لم يتم التحقق بعد','Up to date':'محدَّث','Checking…':'جارٍ التحقق…','is available — only signed releases are accepted':'متاح — تُقبل الإصدارات الموقّعة فقط',
+ 'Key saved':'تم حفظ المفتاح','Key removed':'تمت إزالة المفتاح','Paste a key first':'الصق مفتاحًا أولًا','Move up':'تحريك لأعلى','Move down':'تحريك لأسفل','Show':'إظهار',
+};
+let LANG='en';
+function T(en){ return LANG==='ar'&&AR[en]!=null?AR[en]:en; }
+function applyLang(l){
+  LANG=l==='ar'?'ar':'en';
+  document.documentElement.lang=LANG;
+  document.documentElement.dir=LANG==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-t]').forEach(el=>{ if(el.dataset.t==='') el.dataset.t=el.textContent; el.textContent=T(el.dataset.t); });
+  document.querySelectorAll('[data-tp]').forEach(el=>{ if(el.dataset.tp==='') el.dataset.tp=el.placeholder; el.placeholder=T(el.dataset.tp); });
+}
+
 function msg(t){const m=$('msg');m.textContent=t;m.classList.add('show');clearTimeout(m._h);m._h=setTimeout(()=>m.classList.remove('show'),4000);}
 function call(cmd,args){return invoke(cmd,args).catch(e=>{msg(String(e&&e.message||e));throw e;});}
 function tone(state){ if(state.startsWith('Connected')) return state.includes('old')?'warn':'ok'; if(state.startsWith('Sign-in')||state.startsWith('Error')) return 'bad'; return ''; }
@@ -108,28 +139,29 @@ function tone(state){ if(state.startsWith('Connected')) return state.includes('o
 let view=null;
 function render(v){
   view=v;
-  $('ver').textContent=`Version ${v.version}`;
+  applyLang(v.lang_resolved);
+  $('ver').textContent=`${T('Version')} ${v.version}`;
   $('welcome').innerHTML=v.first_run?`<div class="welcome">
-      <div class="name">Welcome</div>
-      <p>Codenotch lives at the right edge of your screen. Move the cursor to the edge to see how much of each AI tool's limit is used, when it resets, and which tool is working or waiting for you.</p>
-      <p>It reads what your tools already store on this PC. Tools that are not installed stay hidden. Below you can hide or reorder providers, add keys, and install the Claude Code hooks for exact live status.</p>
-      <button class="primary" id="gotIt">Got it</button></div>`:'';
+      <div class="name">${esc(T('Welcome'))}</div>
+      <p>${esc(T("Codenotch lives at the right edge of your screen. Move the cursor to the edge to see how much of each AI tool's limit is used, when it resets, and which tool is working or waiting for you."))}</p>
+      <p>${esc(T('It reads what your tools already store on this PC. Tools that are not installed stay hidden. Below you can hide or reorder providers, add keys, and install the Claude Code hooks for exact live status.'))}</p>
+      <button class="primary" id="gotIt">${esc(T('Got it'))}</button></div>`:'';
   if(v.first_run) $('gotIt').onclick=()=>call('finish_welcome');
   const n=v.rows.length;
   $('providers').innerHTML=v.rows.map((r,i)=>`<div class="row" data-id="${esc(r.id)}">
-      <label class="switch"><input type="checkbox" class="en" ${r.enabled?'checked':''} aria-label="Show ${esc(r.name)}"></label>
+      <label class="switch"><input type="checkbox" class="en" ${r.enabled?'checked':''} aria-label="${esc(T('Show'))} ${esc(r.name)}"></label>
       <div class="grow"><div class="name">${esc(r.name)}</div>
-        <div class="state ${tone(r.state)}">${esc(r.state)}${r.has_usage?'':' · no quota to read'}</div>
+        <div class="state ${tone(r.state)}">${esc(T(r.state))}${r.has_usage?'':esc(T(' · no quota to read'))}</div>
         ${r.note?`<div class="note" title="${esc(r.note)}">${esc(r.note)}</div>`:''}</div>
-      <button class="icon up" ${i===0?'disabled':''} aria-label="Move up">▲</button>
-      <button class="icon down" ${i===n-1?'disabled':''} aria-label="Move down">▼</button>
+      <button class="icon up" ${i===0?'disabled':''} aria-label="${esc(T('Move up'))}">▲</button>
+      <button class="icon down" ${i===n-1?'disabled':''} aria-label="${esc(T('Move down'))}">▼</button>
     </div>`).join('');
-  $('ollamaState').textContent=v.ollama_key?'A key is stored':'No key stored (the OLLAMA_API_KEY environment variable also works)';
-  $('pplxState').textContent=v.perplexity?'Connected — read inside Codenotch’s own browser window':'Not connected';
-  $('pplx').textContent=v.perplexity?'Disconnect':'Connect…';
-  $('hooksState').textContent=v.hooks_installed?'Installed — Claude’s working / waiting state is exact':'Not installed — Claude’s state is estimated';
-  $('hooks').textContent=v.hooks_installed?'Uninstall':'Install';
-  $('updState').textContent=v.update_available?`Version ${v.update_available} is available — only signed releases are accepted`:(v.update_status||'Not checked yet');
+  $('ollamaState').textContent=T(v.ollama_key?'A key is stored':'No key stored (the OLLAMA_API_KEY environment variable also works)');
+  $('pplxState').textContent=T(v.perplexity?'Connected — read inside Codenotch’s own browser window':'Not connected');
+  $('pplx').textContent=T(v.perplexity?'Disconnect':'Connect…');
+  $('hooksState').textContent=T(v.hooks_installed?'Installed — Claude’s working / waiting state is exact':'Not installed — Claude’s state is estimated');
+  $('hooks').textContent=T(v.hooks_installed?'Uninstall':'Install');
+  $('updState').textContent=v.update_available?`${T('Version')} ${v.update_available} ${T('is available — only signed releases are accepted')}`:T(v.update_status||'Not checked yet');
   $('updState').className='state '+(v.update_available?'ok':'');
   $('updInstall').style.display=v.update_available?'':'none';
   $('updAuto').checked=v.update_check;
@@ -149,11 +181,11 @@ $('providers').addEventListener('change',e=>{
   if(!e.target.classList.contains('en')) return;
   call('set_provider_enabled',{id:e.target.closest('.row').dataset.id,enabled:e.target.checked});
 });
-$('ollamaSave').onclick=()=>{ const k=$('ollamaKey').value; if(!k.trim()){msg('Paste a key first');return;} call('set_ollama_key',{key:k}).then(()=>{$('ollamaKey').value='';msg('Key saved');}); };
-$('ollamaRemove').onclick=()=>call('set_ollama_key',{key:null}).then(()=>msg('Key removed'));
+$('ollamaSave').onclick=()=>{ const k=$('ollamaKey').value; if(!k.trim()){msg(T('Paste a key first'));return;} call('set_ollama_key',{key:k}).then(()=>{$('ollamaKey').value='';msg(T('Key saved'));}); };
+$('ollamaRemove').onclick=()=>call('set_ollama_key',{key:null}).then(()=>msg(T('Key removed')));
 $('pplx').onclick=()=>call('set_perplexity',{connect:!view.perplexity});
 $('hooks').onclick=()=>call('set_hooks',{install:!view.hooks_installed}).then(m=>msg(m));
-$('updCheck').onclick=()=>{ $('updState').textContent='Checking…'; call('check_updates'); };
+$('updCheck').onclick=()=>{ $('updState').textContent=T('Checking…'); call('check_updates'); };
 $('updInstall').onclick=()=>call('install_update');
 $('updAuto').onchange=e=>call('set_pref',{key:'update_check',value:e.target.checked});
 $('lang').onchange=e=>call('set_pref',{key:'lang',value:e.target.value});

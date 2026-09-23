@@ -163,13 +163,68 @@ function headlineOf(snap){
   if(metered.length) return metered.reduce((a,b)=> b.used>a.used?b:a);
   return cur[0];
 }
+/* ===== Page strings (W-13). The language is the one Rust resolved (state.lang_resolved), the same
+   one the tray uses; WebView2's navigator.language is unreliable. {x} placeholders are filled by t(). */
+const STR={
+  en:{usageOf:'{name} Usage',signIn:'Sign in to {who} to see usage.',waiting:'Waiting for first reading…',
+    reset:'Reset',windowReset:'Window reset — waiting for a new reading',used:'{p}% used',
+    resetting:'Resetting…',resetsIn:'Resets in {m} min',resetsAt:'Resets at {t}',resetsOn:'Resets {d} {t}',
+    updated:'Updated {a}',offline:'Offline — showing the reading from {a}',offlineNone:'Offline — no reading yet',couldNot:'Could not refresh',
+    justNow:'just now',mAgo:'{n}m ago',hAgo:'{n}h ago',dAgo:'{n}d ago',
+    tokens:'~{n} tokens',left:'{n} left',reqs:'{n} requests',req1:'1 request',reqToday:'~{n} requests today',req1Today:'~1 request today',noReqToday:'no requests today',
+    actHooks:'Activity: live from Claude Code hooks',actEvent:'Activity: live, reported by the tool',
+    actClaudeEst:'Activity: estimated — install Claude Code hooks from the tray for exact state',actEst:'Activity: estimated from local files, may lag',actNone:'Activity: not supported for this tool'},
+  ar:{usageOf:'استخدام {name}',signIn:'سجّل الدخول إلى {who} لرؤية الاستخدام.',waiting:'في انتظار أول قراءة…',
+    reset:'أُعيد الضبط',windowReset:'أُعيد ضبط الفترة — في انتظار قراءة جديدة',used:'مُستخدم {p}%',
+    resetting:'يُعاد الضبط…',resetsIn:'يُعاد الضبط بعد {m} دقيقة',resetsAt:'يُعاد الضبط الساعة {t}',resetsOn:'يُعاد الضبط {d} {t}',
+    updated:'آخر تحديث {a}',offline:'غير متصل — تُعرض قراءة {a}',offlineNone:'غير متصل — لا توجد قراءة بعد',couldNot:'تعذّر التحديث',
+    justNow:'الآن',mAgo:'قبل {n} د',hAgo:'قبل {n} س',dAgo:'قبل {n} يوم',
+    tokens:'~{n} رمز',left:'متبقٍ {n}',reqs:'{n} طلب',req1:'طلب واحد',reqToday:'~{n} طلب اليوم',req1Today:'~طلب واحد اليوم',noReqToday:'لا طلبات اليوم',
+    actHooks:'النشاط: مباشر من روابط Claude Code',actEvent:'النشاط: مباشر، تُبلغ عنه الأداة',
+    actClaudeEst:'النشاط: تقديري — ثبّت روابط Claude Code من الدرج لحالة دقيقة',actEst:'النشاط: تقديري من الملفات المحلية، وقد يتأخر',actNone:'النشاط: غير مدعوم لهذه الأداة'},
+  zh:{usageOf:'{name} 用量',signIn:'登录 {who} 后即可查看用量。',waiting:'正在等待首次读取…',
+    reset:'已重置',windowReset:'窗口已重置 — 等待新的读数',used:'已用 {p}%',
+    resetting:'正在重置…',resetsIn:'{m} 分钟后重置',resetsAt:'{t} 重置',resetsOn:'{d} {t} 重置',
+    updated:'更新于 {a}',offline:'离线 — 显示 {a} 的读数',offlineNone:'离线 — 暂无读数',couldNot:'无法刷新',
+    justNow:'刚刚',mAgo:'{n} 分钟前',hAgo:'{n} 小时前',dAgo:'{n} 天前',
+    tokens:'约 {n} tokens',left:'剩余 {n}',reqs:'{n} 次请求',req1:'1 次请求',reqToday:'今日约 {n} 次请求',req1Today:'今日约 1 次请求',noReqToday:'今日无请求',
+    actHooks:'活动：来自 Claude Code 钩子的实时状态',actEvent:'活动：由工具实时上报',
+    actClaudeEst:'活动：估算 — 从托盘安装 Claude Code 钩子可获得准确状态',actEst:'活动：根据本地文件估算，可能有延迟',actNone:'活动：此工具不支持'},
+  ja:{usageOf:'{name} 使用量',signIn:'使用量を見るには {who} にサインインしてください。',waiting:'最初の読み取りを待っています…',
+    reset:'リセット済み',windowReset:'ウィンドウがリセットされました — 新しい値を待っています',used:'{p}% 使用',
+    resetting:'リセット中…',resetsIn:'{m} 分後にリセット',resetsAt:'{t} にリセット',resetsOn:'{d} {t} にリセット',
+    updated:'{a}に更新',offline:'オフライン — {a}の値を表示中',offlineNone:'オフライン — まだ値がありません',couldNot:'更新できませんでした',
+    justNow:'たった今',mAgo:'{n} 分前',hAgo:'{n} 時間前',dAgo:'{n} 日前',
+    tokens:'約 {n} トークン',left:'残り {n}',reqs:'{n} リクエスト',req1:'1 リクエスト',reqToday:'今日 約 {n} リクエスト',req1Today:'今日 約 1 リクエスト',noReqToday:'今日のリクエストなし',
+    actHooks:'アクティビティ：Claude Code フックからのリアルタイム',actEvent:'アクティビティ：ツールからのリアルタイム報告',
+    actClaudeEst:'アクティビティ：推定 — 正確な状態にはトレイから Claude Code フックを導入',actEst:'アクティビティ：ローカルファイルから推定（遅れることがあります）',actNone:'アクティビティ：このツールは非対応'},
+  ko:{usageOf:'{name} 사용량',signIn:'사용량을 보려면 {who}에 로그인하세요.',waiting:'첫 번째 값을 기다리는 중…',
+    reset:'초기화됨',windowReset:'기간이 초기화됨 — 새 값을 기다리는 중',used:'{p}% 사용',
+    resetting:'초기화 중…',resetsIn:'{m}분 후 초기화',resetsAt:'{t}에 초기화',resetsOn:'{d} {t}에 초기화',
+    updated:'{a} 업데이트',offline:'오프라인 — {a} 값을 표시 중',offlineNone:'오프라인 — 아직 값 없음',couldNot:'새로 고칠 수 없음',
+    justNow:'방금',mAgo:'{n}분 전',hAgo:'{n}시간 전',dAgo:'{n}일 전',
+    tokens:'약 {n} 토큰',left:'{n}개 남음',reqs:'요청 {n}회',req1:'요청 1회',reqToday:'오늘 약 {n}회 요청',req1Today:'오늘 약 1회 요청',noReqToday:'오늘 요청 없음',
+    actHooks:'활동: Claude Code 후크의 실시간 상태',actEvent:'활동: 도구가 실시간 보고',
+    actClaudeEst:'활동: 추정 — 정확한 상태는 트레이에서 Claude Code 후크 설치',actEst:'활동: 로컬 파일 기반 추정(지연될 수 있음)',actNone:'활동: 이 도구는 지원하지 않음'},
+};
+/* Window labels come from the providers in English; the common ones are translated here */
+const LABELS={
+  ar:{'Current session':'الجلسة الحالية','Weekly (all models)':'أسبوعي (كل النماذج)','Weekly (Opus)':'أسبوعي (Opus)','Weekly':'أسبوعي','Weekly limit':'الحد الأسبوعي','Monthly limit':'الحد الشهري','5h limit':'حد 5 ساعات','Tokens this month':'الرموز هذا الشهر','Tokens today':'الرموز اليوم','Included usage':'الاستخدام المشمول','On demand':'عند الطلب','Premium requests':'الطلبات المميزة','Pro searches':'عمليات بحث Pro'},
+  zh:{'Current session':'当前会话','Weekly (all models)':'每周（所有模型）','Weekly (Opus)':'每周（Opus）','Weekly':'每周','Weekly limit':'每周限额','Monthly limit':'每月限额','5h limit':'5 小时限额','Tokens this month':'本月 tokens','Tokens today':'今日 tokens','Included usage':'套餐内用量','On demand':'按需用量','Premium requests':'高级请求','Pro searches':'Pro 搜索'},
+  ja:{'Current session':'現在のセッション','Weekly (all models)':'週間（全モデル）','Weekly (Opus)':'週間（Opus）','Weekly':'週間','Weekly limit':'週間上限','Monthly limit':'月間上限','5h limit':'5 時間上限','Tokens this month':'今月のトークン','Tokens today':'今日のトークン','Included usage':'プラン内使用量','On demand':'従量課金','Premium requests':'プレミアムリクエスト','Pro searches':'Pro 検索'},
+  ko:{'Current session':'현재 세션','Weekly (all models)':'주간(모든 모델)','Weekly (Opus)':'주간(Opus)','Weekly':'주간','Weekly limit':'주간 한도','Monthly limit':'월간 한도','5h limit':'5시간 한도','Tokens this month':'이번 달 토큰','Tokens today':'오늘 토큰','Included usage':'포함 사용량','On demand':'온디맨드','Premium requests':'프리미엄 요청','Pro searches':'Pro 검색'},
+};
+const LOCALE={ar:'ar',en:'en-US',zh:'zh-CN',ja:'ja-JP',ko:'ko-KR'};
+function lang(){ const l=stateSnap&&stateSnap.lang_resolved; return STR[l]?l:'en'; }
+function t(key,vars){ let s=(STR[lang()][key]??STR.en[key]??key); for(const k in (vars||{})) s=s.split('{'+k+'}').join(vars[k]); return s; }
+function label(s){ return (LABELS[lang()]||{})[s]||s; }
 // W-12: Rust decides freshness per provider (live / stale / offline / error / needs_auth / no_data)
 function dimmed(p){ return p.freshness==='stale'||p.freshness==='offline'||p.freshness==='error'; }
 function freshnessLine(p){
   const a=p.age_ms?ago(p.age_ms):'';
-  if(p.freshness==='stale'&&a) return `Updated ${a}`;
-  if(p.freshness==='offline') return a?`Offline — showing the reading from ${a}`:'Offline — no reading yet';
-  if(p.freshness==='error') return 'Could not refresh';
+  if(p.freshness==='stale'&&a) return t('updated',{a});
+  if(p.freshness==='offline') return a?t('offline',{a}):t('offlineNone');
+  if(p.freshness==='error') return t('couldNot');
   return '';
 }
 let stateSnap={sessions:[],agg:'idle'};
@@ -216,35 +271,35 @@ function renderRing(){
 function resetCopy(ms){
   if(!ms) return '';
   const diff=ms-Date.now();
-  if(diff<=0) return 'Resetting…';
-  if(diff<60*60*1000) return `Resets in ${Math.max(1,Math.round(diff/60000))} min`;
-  const d=new Date(ms);
-  const t=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-  if(diff<24*60*60*1000) return `Resets at ${t}`;
-  return `Resets ${d.toLocaleDateString('en-US',{weekday:'short'})} ${t}`;
+  if(diff<=0) return t('resetting');
+  if(diff<60*60*1000) return t('resetsIn',{m:Math.max(1,Math.round(diff/60000))});
+  const d=new Date(ms), loc=LOCALE[lang()];
+  const tm=d.toLocaleTimeString(loc,{hour:'numeric',minute:'2-digit'});
+  if(diff<24*60*60*1000) return t('resetsAt',{t:tm});
+  return t('resetsOn',{d:d.toLocaleDateString(loc,{weekday:'short'}),t:tm});
 }
 
 function compact(n){ return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'k':String(n); }
 function countCopy(w){
-  if(w.unit==='tokens') return `~${compact(w.count)} tokens`;
-  if(w.unit==='left') return `${compact(w.count)} left`;
-  if(w.unit==='requests') return `${compact(w.count)} request${w.count===1?'':'s'}`;
-  return w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today';
+  if(w.unit==='tokens') return t('tokens',{n:compact(w.count)});
+  if(w.unit==='left') return t('left',{n:compact(w.count)});
+  if(w.unit==='requests') return w.count===1?t('req1'):t('reqs',{n:compact(w.count)});
+  return w.count>1?t('reqToday',{n:w.count}):w.count===1?t('req1Today'):t('noReqToday');
 }
 function ago(ageMs){ // age in ms → "5m ago"
   const m=Math.round(ageMs/60000);
-  if(m<1) return 'just now';
-  if(m<60) return `${m}m ago`;
+  if(m<1) return t('justNow');
+  if(m<60) return t('mAgo',{n:m});
   const h=Math.round(m/60);
-  return h<48?`${h}h ago`:`${Math.round(h/24)}d ago`;
+  return h<48?t('hAgo',{n:h}):t('dAgo',{n:Math.round(h/24)});
 }
 
 // W-08: say where the working/waiting state comes from, so "idle" is never mistaken for "can't tell"
 function activitySource(p){
   const a=p.capabilities&&p.capabilities.activity;
-  if(a==='event') return p.id==='claude'?'Activity: live from Claude Code hooks':'Activity: live, reported by the tool';
-  if(a==='inferred') return p.id==='claude'?'Activity: estimated — install Claude Code hooks from the tray for exact state':'Activity: estimated from local files, may lag';
-  return 'Activity: not supported for this tool';
+  if(a==='event') return p.id==='claude'?t('actHooks'):t('actEvent');
+  if(a==='inferred') return p.id==='claude'?t('actClaudeEst'):t('actEst');
+  return t('actNone');
 }
 const STATE_DOT={running:RUNGREEN,attention:AMBER,done:'#57c7ff'};
 
@@ -255,30 +310,30 @@ function renderCard(){
   const snap=p.snap;
   const headIcon=glyphHtml(p,true);
   const noQuota=p.capabilities&&!p.capabilities.usage;
-  let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(p.name)}${noQuota?'':' Usage'}</span></div>`;
+  let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(noQuota?p.name:t('usageOf',{name:p.name}))}</span></div>`;
   const fl=freshnessLine(p);
   if(fl) html+=`<div class="c-sub">${esc(fl)}</div>`;
   if(snap.status==='needsAuth'){
     const who=p.id==='claude'?'Claude Code':p.name;
-    html+=`<div class="c-note">Sign in to ${esc(who)} to see usage.<br>${esc(snap.note)}</div>`;
+    html+=`<div class="c-note">${esc(t('signIn',{who}))}<br>${esc(snap.note)}</div>`;
   }else if(!snap.windows.length){
-    html+=`<div class="c-note">${esc(snap.note||'Waiting for first reading…')}</div>`;
+    html+=`<div class="c-note">${esc(snap.note||t('waiting'))}</div>`;
   }else{
     for(const w of snap.windows){
       if(w.count!=null){
-        html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(w.label)}</span></div>
-          <div class="w-used">${countCopy(w)}</div></div>`;
+        html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(label(w.label))}</span></div>
+          <div class="w-used">${esc(countCopy(w))}</div></div>`;
         continue;
       }
       if(w.expired){
-        html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(w.label)}</span><span class="w-reset">Reset</span></div>
-          <div class="w-track"></div><div class="w-used">Window reset — waiting for a new reading</div></div>`;
+        html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(label(w.label))}</span><span class="w-reset">${esc(t('reset'))}</span></div>
+          <div class="w-track"></div><div class="w-used">${esc(t('windowReset'))}</div></div>`;
         continue;
       }
       html+=`<div class="win">
-        <div class="w-row"><span class="w-label">${esc(w.label)}</span><span class="w-reset">${resetCopy(w.resets_at)}</span></div>
+        <div class="w-row"><span class="w-label">${esc(label(w.label))}</span><span class="w-reset">${esc(resetCopy(w.resets_at))}</span></div>
         <div class="w-track"><div class="w-fill" style="width:${(Math.min(w.used,1)*100).toFixed(0)}%;background:${tone(w.used)}"></div></div>
-        <div class="w-used">${w.derived?'~':''}${Math.round(w.used*100)}% Used</div>
+        <div class="w-used">${w.derived?'~':''}${esc(t('used',{p:Math.round(w.used*100)}))}</div>
       </div>`;
     }
     if(snap.note) html+=`<div class="c-note">${esc(snap.note)}</div>`;
@@ -305,6 +360,7 @@ function renderCard(){
   }
   html+=`<div class="c-src">${esc(activitySource(p))}</div>`;
   c.innerHTML=html;
+  c.dir=lang()==='ar'?'rtl':'ltr'; // Arabic reads right to left; the card stays where it is
   placeCard();
 }
 // The card follows the hovered cell: vertically centred on it (kept inside the window), tail pointing at it

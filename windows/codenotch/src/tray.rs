@@ -38,11 +38,14 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     let l_ja = CheckMenuItemBuilder::with_id("lang-ja", "日本語")
         .checked(lang == "ja")
         .build(app)?;
+    let l_ar = CheckMenuItemBuilder::with_id("lang-ar", "العربية")
+        .checked(lang == "ar")
+        .build(app)?;
     let l_ko = CheckMenuItemBuilder::with_id("lang-ko", "한국어")
         .checked(lang == "ko")
         .build(app)?;
     let lang_menu = SubmenuBuilder::new(app, tr(lang, "language"))
-        .items(&[&l_auto, &l_zh, &l_en, &l_ja, &l_ko])
+        .items(&[&l_auto, &l_en, &l_ar, &l_zh, &l_ja, &l_ko])
         .build()?;
     let refresh = MenuItemBuilder::with_id("refresh", tr(lang, "refresh")).build(app)?;
     let reset = MenuItemBuilder::with_id("reset", tr(lang, "reset_pos")).build(app)?;

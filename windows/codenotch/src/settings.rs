@@ -69,6 +69,8 @@ pub fn moved(order: &[String], id: &str, delta: i32) -> Vec<String> {
 pub struct View {
     rows: Vec<Row>,
     lang: String,
+    /// The language actually in use ("auto" resolved), so the page can switch text and direction
+    lang_resolved: String,
     hover_only: bool,
     autostart: bool,
     hooks_installed: bool,
@@ -99,6 +101,7 @@ fn view(app: &AppHandle) -> View {
     });
     View {
         rows,
+        lang_resolved: if lang == "auto" { crate::i18n::resolve_auto().to_string() } else { lang.clone() },
         lang,
         hover_only,
         autostart: crate::autostart::is_enabled(),
@@ -199,7 +202,7 @@ pub fn set_pref(app: AppHandle, key: String, value: serde_json::Value) -> Result
         }
         "lang" => {
             let l = value.as_str().ok_or("expected a language")?;
-            if !["auto", "en", "zh", "ja", "ko"].contains(&l) {
+            if !["auto", "en", "ar", "zh", "ja", "ko"].contains(&l) {
                 return Err("unknown language".into());
             }
             crate::apply_lang(&app, l);

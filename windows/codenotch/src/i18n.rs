@@ -17,6 +17,9 @@ pub fn resolve_auto() -> &'static str {
             if name.starts_with("ko") {
                 return "ko";
             }
+            if name.starts_with("ar") {
+                return "ar";
+            }
         }
     }
     "en"
@@ -25,6 +28,21 @@ pub fn resolve_auto() -> &'static str {
 pub fn tr(lang: &str, key: &str) -> &'static str {
     let l = if lang == "auto" { resolve_auto() } else { lang };
     match (l, key) {
+        ("ar", "install") => "تثبيت روابط Claude Code",
+        ("ar", "uninstall") => "إزالة الروابط",
+        ("ar", "language") => "اللغة",
+        ("ar", "lang_auto") => "حسب النظام",
+        ("ar", "reset_pos") => "إعادة موضع الشريط",
+        ("ar", "quit") => "خروج",
+        ("ar", "hooks_missing") => "الروابط غير مثبتة: انقر بزر الفأرة الأيمن على أيقونة الدرج ← تثبيت روابط Claude Code",
+        ("ar", "autostart") => "التشغيل مع Windows (بصمت)",
+        ("ar", "refresh") => "تحديث الاستخدام الآن",
+        ("ar", "open_data") => "فتح مجلد البيانات (السجلات / الأيقونات)",
+        ("ar", "hover_only") => "إظهار الشريط عند المرور بالمؤشر فقط",
+        ("ar", "pplx_connect") => "ربط Perplexity…",
+        ("ar", "pplx_disconnect") => "فصل Perplexity",
+        ("ar", "settings") => "الإعدادات…",
+        ("ar", "install_update") => "تثبيت التحديث",
         ("zh", "install") => "安装 Claude Code 钩子",
         ("zh", "uninstall") => "卸载钩子",
         ("zh", "language") => "语言",
@@ -86,5 +104,60 @@ pub fn tr(lang: &str, key: &str) -> &'static str {
         ("ko", "install_update") => "업데이트 설치",
         (_, "install_update") => "Install update",
         _ => "?",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Keys defined in one language block of the page dictionary (`name:'…'` pairs)
+    fn keys(block: &str) -> std::collections::BTreeSet<String> {
+        let mut out = std::collections::BTreeSet::new();
+        for (i, _) in block.match_indices(":'") {
+            let id: String = block[..i].chars().rev().take_while(|c| c.is_ascii_alphanumeric()).collect::<Vec<_>>().into_iter().rev().collect();
+            if !id.is_empty() {
+                out.insert(id);
+            }
+        }
+        out
+    }
+
+    /// Arabic is a first-class language: every tray string has its own Arabic text, none falls back
+    #[test]
+    fn every_tray_string_has_arabic() {
+        for k in ["install", "uninstall", "language", "lang_auto", "reset_pos", "quit", "hooks_missing", "autostart", "refresh", "open_data", "hover_only", "pplx_connect", "pplx_disconnect", "settings", "install_update"] {
+            let (ar, en) = (super::tr("ar", k), super::tr("en", k));
+            assert_ne!(ar, "?", "{k}");
+            assert_ne!(ar, en, "{k} has no Arabic text");
+        }
+    }
+
+    /// Every card string exists in every language the tray offers (W-13)
+    #[test]
+    fn the_page_dictionary_is_complete_in_every_language() {
+        let html = include_str!("../ui/notch.html");
+        let start = html.find("const STR={").expect("dictionary");
+        let body = &html[start..start + html[start..].find("\n};").expect("end")];
+        let block = |lang: &str| {
+            let a = body.find(&format!("\n  {lang}:{{")).unwrap_or_else(|| panic!("{lang} missing"));
+            let rest = &body[a + 3..];
+            let b = rest.find("\n  ").map(|i| {
+                // the next language header starts a line with two spaces and `xx:{`
+                let mut j = i;
+                while let Some(k) = rest[j + 1..].find("\n  ") {
+                    let line = &rest[j + 1 + k + 3..];
+                    if line.len() > 3 && line.as_bytes()[2] == b':' && line.as_bytes()[3] == b'{' {
+                        return j + 1 + k;
+                    }
+                    j += 1 + k;
+                }
+                rest.len()
+            });
+            rest[..b.unwrap_or(rest.len())].to_string()
+        };
+        let en = keys(&block("en"));
+        assert!(en.len() > 20, "{en:?}");
+        for l in ["ar", "zh", "ja", "ko"] {
+            assert_eq!(keys(&block(l)), en, "{l} does not define the same strings as en");
+        }
     }
 }
