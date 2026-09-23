@@ -90,6 +90,7 @@ pub fn run() -> String {
     o += &format!("  {}\n", crate::ollama_cloud::probe());
     o += &format!("  {}\n", crate::opencode::probe());
     o += &format!("  {}\n", crate::copilot::probe());
+    o += &format!("  {}\n", crate::grok::probe());
     o += &format!("\nprovider glyphs:\n{}\n", crate::glyphs::probe());
     o += &format!("\nworking state:\n  {}\n", crate::activity::probe());
 

@@ -27,6 +27,7 @@ mod glm;
 mod ollama_cloud;
 mod opencode;
 mod copilot;
+mod grok;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
