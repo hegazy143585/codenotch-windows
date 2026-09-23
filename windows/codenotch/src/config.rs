@@ -33,6 +33,9 @@ pub struct Config {
     /// Provider ids the user switched off: no cell in the notch
     #[serde(default)]
     pub disabled: Vec<String>,
+    /// Look for a signed update every 6 h (settings); installing always needs a click
+    #[serde(default = "default_true")]
+    pub update_check: bool,
 }
 
 fn default_notch_y() -> f64 {
@@ -64,6 +67,7 @@ impl Default for Config {
             perplexity: false,
             provider_order: Vec::new(),
             disabled: Vec::new(),
+            update_check: true,
         }
     }
 }

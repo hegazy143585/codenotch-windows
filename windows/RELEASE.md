@@ -19,4 +19,16 @@ The installer is per-user (no admin prompt), adds a Start Menu entry and an unin
 - **Code signing** (removes the SmartScreen warning): an OV/EV certificate or Azure Trusted Signing.
   Add it as repository secrets, then set `bundle.windows.signCommand` (Trusted Signing) or
   `certificateThumbprint` in `tauri.release.conf.json`.
-- **Auto-update** (W-10, not built yet): a Tauri updater key pair; the private key goes in repository secrets.
+- **Auto-update signing key** (W-10, built): the key pair was generated on the development PC.
+  The public key is in `codenotch/tauri.conf.json`; the private key is at
+  `%USERPROFILE%\.tauri\codenotch-updater.key` and is **not** in the repo. Add its full contents as the
+  repository secret `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, empty unless you
+  re-encrypt it). Back the file up somewhere safe: losing it means existing installs can never be updated
+  again; leaking it means anyone can push an update to them.
+
+## How auto-update works
+Every `win-v*` tag builds a signed installer plus `latest.json` and attaches both to the GitHub release.
+Installed copies read `releases/latest/download/latest.json` every 6 h (settings can turn this off), verify the
+signature against the shipped public key, and offer "Install update" in the tray and settings. Nothing is
+installed without a click. The version in the tag must be higher than the installed one, so bump all three
+version fields before tagging. A local `scripts\build-installer.ps1` also signs when the key file is present.

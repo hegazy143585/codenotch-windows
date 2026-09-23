@@ -31,6 +31,7 @@ mod grok;
 mod commandcode;
 mod perplexity;
 mod settings;
+mod updates;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -660,6 +661,7 @@ fn main() {
     let port = cfg.port;
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Launching a freshly built exe while the old one is still running lands here: the new
             // instance is turned away and what stays on screen is the old process. Say so loudly.
@@ -698,7 +700,9 @@ fn main() {
             settings::set_hooks,
             settings::set_ollama_key,
             settings::set_perplexity,
-            settings::finish_welcome
+            settings::finish_welcome,
+            settings::check_updates,
+            settings::install_update
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -713,6 +717,7 @@ fn main() {
             watcher::start(handle.clone());
             providers::start_all(&handle);
             providers::start_clock(handle.clone());
+            updates::start(handle.clone());
             activity::start(handle.clone());
             // Collecting glyphs may read icon resources out of a few executables; do it off the main thread and push when done
             let gh = handle.clone();

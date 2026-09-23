@@ -76,6 +76,9 @@ pub struct View {
     ollama_key: bool,
     first_run: bool,
     version: &'static str,
+    update_check: bool,
+    update_available: Option<String>,
+    update_status: String,
 }
 
 static FIRST_RUN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -86,9 +89,9 @@ pub fn mark_first_run() {
 
 fn view(app: &AppHandle) -> View {
     let st = app.state::<AppState>();
-    let (order, disabled, lang, hover_only, perplexity) = {
+    let (order, disabled, lang, hover_only, perplexity, update_check) = {
         let c = st.cfg.lock().unwrap_or_else(|e| e.into_inner());
-        (c.provider_order.clone(), c.disabled.clone(), c.lang.clone(), c.hover_only, c.perplexity)
+        (c.provider_order.clone(), c.disabled.clone(), c.lang.clone(), c.hover_only, c.perplexity, c.update_check)
     };
     let rows = rows(&order, &disabled, |id| {
         let u = st.usage.get(id).lock().unwrap_or_else(|e| e.into_inner()).clone();
@@ -104,6 +107,9 @@ fn view(app: &AppHandle) -> View {
         ollama_key: crate::remote::cred_read(crate::ollama_cloud::CRED_TARGET).is_some(),
         first_run: FIRST_RUN.load(std::sync::atomic::Ordering::Relaxed),
         version: env!("CARGO_PKG_VERSION"),
+        update_check,
+        update_available: crate::updates::pending_version(),
+        update_status: crate::updates::last_result(),
     }
 }
 
@@ -184,6 +190,13 @@ pub fn set_pref(app: AppHandle, key: String, value: serde_json::Value) -> Result
             let on = value.as_bool().ok_or("expected true/false")?;
             if on { crate::autostart::enable() } else { crate::autostart::disable() }?;
         }
+        "update_check" => {
+            let v = value.as_bool().ok_or("expected true/false")?;
+            let st = app.state::<AppState>();
+            let mut c = st.cfg.lock().unwrap_or_else(|e| e.into_inner());
+            c.update_check = v;
+            crate::config::save(&c);
+        }
         "lang" => {
             let l = value.as_str().ok_or("expected a language")?;
             if !["auto", "en", "zh", "ja", "ko"].contains(&l) {
@@ -226,6 +239,16 @@ pub fn set_perplexity(app: AppHandle, connect: bool) {
     }
     crate::tray::refresh_menu(&app);
     changed(&app);
+}
+
+#[tauri::command]
+pub fn check_updates() {
+    crate::updates::request_check();
+}
+
+#[tauri::command]
+pub fn install_update(app: AppHandle) {
+    crate::updates::install(&app);
 }
 
 #[tauri::command]

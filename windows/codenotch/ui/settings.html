@@ -72,6 +72,16 @@
     </div>
   </div>
 
+  <h2>Updates</h2>
+  <div class="card">
+    <div class="row">
+      <div class="grow"><div class="name">Codenotch updates</div><div class="state" id="updState"></div></div>
+      <button id="updCheck">Check now</button>
+      <button id="updInstall" class="primary" style="display:none">Install</button>
+    </div>
+    <div class="row"><label class="switch grow"><input type="checkbox" id="updAuto"> Check for updates every 6 hours (installing always asks first)</label></div>
+  </div>
+
   <h2>General</h2>
   <div class="card">
     <div class="row">
@@ -119,6 +129,10 @@ function render(v){
   $('pplx').textContent=v.perplexity?'Disconnect':'Connect…';
   $('hooksState').textContent=v.hooks_installed?'Installed — Claude’s working / waiting state is exact':'Not installed — Claude’s state is estimated';
   $('hooks').textContent=v.hooks_installed?'Uninstall':'Install';
+  $('updState').textContent=v.update_available?`Version ${v.update_available} is available — only signed releases are accepted`:(v.update_status||'Not checked yet');
+  $('updState').className='state '+(v.update_available?'ok':'');
+  $('updInstall').style.display=v.update_available?'':'none';
+  $('updAuto').checked=v.update_check;
   $('lang').value=v.lang;
   $('hover').checked=v.hover_only;
   $('autostart').checked=v.autostart;
@@ -139,6 +153,9 @@ $('ollamaSave').onclick=()=>{ const k=$('ollamaKey').value; if(!k.trim()){msg('P
 $('ollamaRemove').onclick=()=>call('set_ollama_key',{key:null}).then(()=>msg('Key removed'));
 $('pplx').onclick=()=>call('set_perplexity',{connect:!view.perplexity});
 $('hooks').onclick=()=>call('set_hooks',{install:!view.hooks_installed}).then(m=>msg(m));
+$('updCheck').onclick=()=>{ $('updState').textContent='Checking…'; call('check_updates'); };
+$('updInstall').onclick=()=>call('install_update');
+$('updAuto').onchange=e=>call('set_pref',{key:'update_check',value:e.target.checked});
 $('lang').onchange=e=>call('set_pref',{key:'lang',value:e.target.value});
 $('hover').onchange=e=>call('set_pref',{key:'hover_only',value:e.target.checked});
 $('autostart').onchange=e=>call('set_pref',{key:'autostart',value:e.target.checked}).catch(load);

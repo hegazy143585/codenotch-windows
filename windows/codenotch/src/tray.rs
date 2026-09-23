@@ -63,9 +63,15 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     } else {
         MenuItemBuilder::with_id("pplx-on", tr(lang, "pplx_connect")).build(app)?
     };
+    let update = crate::updates::pending_version()
+        .map(|v| MenuItemBuilder::with_id("update", format!("{} {v}", tr(lang, "install_update"))).build(app))
+        .transpose()?;
     let quit = MenuItemBuilder::with_id("quit", tr(lang, "quit")).build(app)?;
-    MenuBuilder::new(app)
-        .item(&settings)
+    let mut mb = MenuBuilder::new(app);
+    if let Some(u) = &update {
+        mb = mb.item(u).separator();
+    }
+    mb.item(&settings)
         .separator()
         .items(&[&install, &uninstall])
         .separator()
@@ -158,6 +164,7 @@ fn handle(app: &AppHandle, id: &str) {
             refresh_menu(app);
         }
         "settings" => crate::settings::open(app),
+        "update" => crate::updates::install(app),
         "quit" => app.exit(0),
         _ if id.starts_with("lang-") => crate::apply_lang(app, &id[5..]),
         _ => {}

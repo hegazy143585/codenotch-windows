@@ -81,6 +81,10 @@ pub fn tr(lang: &str, key: &str) -> &'static str {
         ("ja", "settings") => "設定…",
         ("ko", "settings") => "설정…",
         (_, "settings") => "Settings…",
+        ("zh", "install_update") => "安装更新",
+        ("ja", "install_update") => "アップデートをインストール",
+        ("ko", "install_update") => "업데이트 설치",
+        (_, "install_update") => "Install update",
         _ => "?",
     }
 }
