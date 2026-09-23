@@ -21,6 +21,7 @@
 //! then the WAL has been checkpointed, so ignoring it costs nothing).
 //! Read only, never written; token values never reach logs, events or the UI.
 
+use crate::notes;
 use crate::usage::{LimitWindow, UsageSnapshot};
 use crate::AppState;
 use std::path::PathBuf;
@@ -154,7 +155,7 @@ fn parse_iso(v: Option<&serde_json::Value>) -> Option<u64> {
 }
 
 /// usage-summary → (windows, note). When there are no windows the note says why (Unlimited / free plan without an allowance)
-pub fn parse_summary(v: &serde_json::Value) -> (Vec<LimitWindow>, String) {
+pub fn parse_summary(v: &serde_json::Value) -> (Vec<LimitWindow>, Vec<notes::NotePart>) {
     let resets_at = parse_iso(v.get("billingCycleEnd"));
     let usage = v.get("individualUsage").cloned().unwrap_or(serde_json::Value::Null);
     let plan = usage.get("plan").cloned().unwrap_or(serde_json::Value::Null);
@@ -184,15 +185,17 @@ pub fn parse_summary(v: &serde_json::Value) -> (Vec<LimitWindow>, String) {
         }
     }
     if !out.is_empty() {
-        return (out, String::new());
+        return (out, Vec::new());
     }
-    let membership = v.get("membershipType").and_then(|x| x.as_str()).unwrap_or("this");
-    let note = if v.get("isUnlimited").and_then(|x| x.as_bool()) == Some(true) {
-        format!("Unlimited on the {membership} plan — nothing to meter")
-    } else {
-        format!("The {membership} plan has nothing for Cursor to meter yet")
+    let membership = v.get("membershipType").and_then(|x| x.as_str());
+    let unlimited = v.get("isUnlimited").and_then(|x| x.as_bool()) == Some(true);
+    let note = match (unlimited, membership) {
+        (true, Some(m)) => notes::p("nCursorUnlimited", &[m]),
+        (true, None) => notes::c("nCursorUnlimitedAny"),
+        (false, Some(m)) => notes::p("nCursorNothing", &[m]),
+        (false, None) => notes::c("nCursorNothingAny"),
     };
-    (out, note)
+    (out, vec![note])
 }
 
 enum FetchErr {
@@ -225,7 +228,7 @@ fn read_once(prev: &UsageSnapshot) -> UsageSnapshot {
     snap.offline = false;
     let Some(creds) = read_credentials() else {
         snap.status = "needsAuth".into();
-        snap.note = "Sign in to Cursor (the editor) to see usage.".into();
+        snap.set_note(vec![notes::c("nCursorSignIn")]);
         return snap;
     };
     match fetch_once(&creds.cookie) {
@@ -235,30 +238,30 @@ fn read_once(prev: &UsageSnapshot) -> UsageSnapshot {
             if windows.is_empty() {
                 snap.status = "none".into();
                 snap.windows.clear();
-                snap.note = note;
+                snap.set_note(note);
             } else {
                 snap.status = "ok".into();
                 snap.windows = windows;
-                snap.note = match (&creds.plan, v.get("membershipType").and_then(|x| x.as_str())) {
-                    (_, Some(m)) => format!("{} · via Cursor", cap(m)),
-                    (Some(p), None) => format!("{} · via Cursor", cap(p)),
-                    _ => String::new(),
-                };
+                snap.set_note(match (&creds.plan, v.get("membershipType").and_then(|x| x.as_str())) {
+                    (_, Some(m)) => vec![notes::text(cap(m)), notes::p("nVia", &["Cursor"])],
+                    (Some(p), None) => vec![notes::text(cap(p)), notes::p("nVia", &["Cursor"])],
+                    _ => vec![],
+                });
             }
         }
         Err(FetchErr::NeedsAuth) => {
             snap.status = "needsAuth".into();
-            snap.note = "Cursor session was rejected — sign in again in the editor".into();
+            snap.set_note(vec![notes::c("nCursorRejected")]);
         }
         Err(FetchErr::Offline(msg)) => {
             snap.status = if snap.windows.is_empty() { "error" } else { "stale" }.into();
             snap.offline = true;
-            snap.note = format!("Offline — {msg}");
+            snap.set_note(vec![notes::p("nOffline", &[&msg])]);
         }
         Err(FetchErr::Other(msg)) => {
             // Stale beats invented: keep the old reading, marked stale
             snap.status = if snap.windows.is_empty() { "error" } else { "stale" }.into();
-            snap.note = msg;
+            snap.set_note(vec![notes::text(msg)]);
         }
     }
     snap
@@ -332,13 +335,15 @@ mod tests {
     fn an_unlimited_plan_has_no_windows_and_says_why() {
         let (w, note) = parse_summary(&fixture(include_str!("../fixtures/cursor_usage_summary_unlimited.json")));
         assert!(w.is_empty());
-        assert_eq!(note, "Unlimited on the enterprise plan — nothing to meter");
+        assert_eq!(notes::render(&note), "Unlimited on the enterprise plan — nothing to meter");
+        assert_eq!(note, vec![notes::p("nCursorUnlimited", &["enterprise"])]);
     }
 
     #[test]
     fn an_empty_reply_is_not_invented_into_a_reading() {
         let (w, note) = parse_summary(&serde_json::json!({}));
         assert!(w.is_empty());
-        assert!(note.contains("nothing for Cursor to meter"));
+        assert_eq!(notes::render(&note), "This plan has nothing for Cursor to meter yet", "no made-up plan name");
+
     }
 }

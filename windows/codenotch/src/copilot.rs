@@ -7,6 +7,7 @@
 //! Windows Credential Manager by default, and asking gh is the supported way to read it).
 //! Unlimited quotas are skipped rather than drawn as 0 %.
 
+use crate::notes;
 use crate::remote::{self, Fetch, Spec};
 use crate::usage::{LimitWindow, UsageSnapshot};
 use std::sync::atomic::AtomicBool;
@@ -136,11 +137,13 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
     rest.sort();
     keys.extend(rest);
     let windows: Vec<LimitWindow> = keys.iter().filter_map(|k| window(k, &quotas[*k], v)).collect();
-    let plan = remote::s(v.get("copilot_plan")).map(|p| format!("{} · ", remote::cap(&p))).unwrap_or_default();
+    let mut note: Vec<_> = remote::s(v.get("copilot_plan")).map(|p| notes::text(remote::cap(&p))).into_iter().collect();
     if windows.is_empty() {
-        return Fetch::Nothing(format!("{plan}GitHub Copilot reported no metered quotas (unlimited)"));
+        note.push(notes::p("nUnlimitedQuotas", &["GitHub Copilot"]));
+        return Fetch::Nothing(note);
     }
-    Fetch::Ok { windows, note: format!("{plan}GitHub Copilot") }
+    note.push(notes::text("GitHub Copilot"));
+    Fetch::Ok { windows, note }
 }
 
 fn fetch() -> Fetch {
@@ -152,7 +155,7 @@ fn fetch() -> Fetch {
         .set("X-GitHub-Api-Version", "2022-11-28")
         .set("User-Agent", concat!("Codenotch/", env!("CARGO_PKG_VERSION")))
         .call();
-    remote::call(resp, "GitHub rejected the token — run `gh auth login` and make sure Copilot is enabled", |v| parse(&v))
+    remote::call(resp, notes::c("nGhRejected"), |v| parse(&v))
 }
 
 pub fn probe() -> String {
@@ -183,7 +186,8 @@ mod tests {
         assert_eq!(windows.iter().map(|w| w.label.as_str()).collect::<Vec<_>>(), vec!["Premium requests"]);
         assert!((windows[0].used - 0.4).abs() < 1e-9, "120 of 300");
         assert_eq!(windows[0].resets_at, Some(1_790_812_800_000), "bare date = midnight UTC");
-        assert_eq!(note, "Individual_pro · GitHub Copilot");
+        assert_eq!(notes::render(&note), "Individual_pro · GitHub Copilot");
+
     }
 
     #[test]

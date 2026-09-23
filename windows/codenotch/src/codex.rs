@@ -25,6 +25,7 @@
 //! Credentials are borrowed, never managed: the numbers come from Codex's own sign-in and Codex's
 //! own endpoint. No sign-in and no session history at all means absent (no cell is shown).
 
+use crate::notes::{self, NotePart};
 use crate::usage::{LimitWindow, UsageSnapshot};
 use crate::AppState;
 use std::io::{Read, Seek, SeekFrom};
@@ -376,13 +377,13 @@ pub fn present() -> bool {
 fn read_once() -> UsageSnapshot {
     let mut snap = UsageSnapshot::default();
     // Note attached to the fallback reading when the live read failed; needs_auth picks the empty state when there is no fallback either
-    let mut live_note: Option<String> = None;
+    let mut live_note: Option<NotePart> = None;
     let mut needs_auth = false;
     let held_until = BACKOFF_UNTIL.load(std::sync::atomic::Ordering::Relaxed);
     let now = now_ms();
     if held_until > now {
         snap.backoff_until = held_until;
-        live_note = Some(format!("Rate limited — retrying in {}s", (held_until - now) / 1000));
+        live_note = Some(notes::p("nRateLimited", &[&((held_until - now) / 1000).to_string()]));
     } else {
         match load_credential() {
             None => {
@@ -398,35 +399,34 @@ fn read_once() -> UsageSnapshot {
                         snap.status = "ok".into();
                         snap.windows = windows;
                         snap.fetched_at = now_ms();
-                        snap.note = plan.map(|p| format!("{} · via Codex", cap(&p))).unwrap_or_default();
+                        snap.set_note(match plan {
+                            Some(p) => vec![notes::text(cap(&p)), notes::p("nVia", &["Codex"])],
+                            None => vec![],
+                        });
                         return snap;
                     }
                     let keys: Vec<String> = v.as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
                     crate::applog(&format!("codex: usage reply has no windows (top-level keys {keys:?}), falling back to the rollout"));
-                    live_note = Some("Codex reported no usage windows".into());
+                    live_note = Some(notes::p("nNoWindows", &["Codex"]));
                 }
                 Err(LiveErr::NeedsAuth) => {
                     needs_auth = true;
-                    live_note = Some(if cred.expired {
-                        "Codex sign-in expired — open Codex once to refresh it".into()
-                    } else {
-                        "Codex rejected its sign-in — sign in to Codex again".into()
-                    });
+                    live_note = Some(notes::c(if cred.expired { "nCodexExpired" } else { "nCodexRejected" }));
                 }
                 Err(LiveErr::RateLimited(secs)) => {
                     let until = now_ms() + secs * 1000;
                     BACKOFF_UNTIL.store(until, std::sync::atomic::Ordering::Relaxed);
                     snap.backoff_until = until;
-                    live_note = Some(format!("Rate limited — retrying in {secs}s"));
+                    live_note = Some(notes::p("nRateLimited", &[&secs.to_string()]));
                     crate::applog(&format!("codex: usage endpoint returned 429, retrying in {secs}s"));
                 }
                 Err(LiveErr::Offline(e)) => {
                     snap.offline = true;
-                    live_note = Some(format!("Offline ({e})"));
+                    live_note = Some(notes::p("nOffline", &[&e]));
                 }
                 Err(LiveErr::Other(e)) => {
                     crate::applog(&format!("codex: live read failed ({e}), falling back to the rollout"));
-                    live_note = Some(format!("Live read failed ({e})"));
+                    live_note = Some(notes::p("nLiveFailed", &[&e]));
                 }
             },
         }
@@ -439,13 +439,11 @@ fn read_once() -> UsageSnapshot {
             snap.status = if fresh { "ok" } else { "stale" }.into();
             snap.windows = windows;
             snap.fetched_at = rec; // the recorded time is what counts; the UI shows Updated N ago from it
-            snap.note = match plan {
-                Some(p) => format!("{} · from last Codex run", cap(&p)),
-                None => "from last Codex run".into(),
-            };
-            if let Some(n) = live_note {
-                snap.note = format!("{n} · {}", snap.note);
-            }
+            // "<why the live read failed> · <plan> · from last Codex run"
+            let mut parts: Vec<NotePart> = live_note.into_iter().collect();
+            parts.extend(plan.map(|p| notes::text(cap(&p))));
+            parts.push(notes::c("nFromLastRun"));
+            snap.set_note(parts);
         }
         None => {
             snap.status = if needs_auth {
@@ -456,11 +454,12 @@ fn read_once() -> UsageSnapshot {
                 "absent"
             }
             .into();
-            snap.note = match live_note {
-                Some(n) => n,
-                None if present() => "Codex has not recorded a usage snapshot yet".into(),
-                None => String::new(),
-            };
+            snap.set_note(match live_note {
+                Some(n) => vec![n],
+                None if present() => vec![notes::c("nCodexNoSnapshot")],
+                None => vec![],
+            });
+
         }
     }
     snap

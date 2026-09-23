@@ -9,6 +9,7 @@
 //! Reply (snake_case): { limits:[{kind,percent,resets_at}], five_hour:{utilization,resets_at}, seven_day:{...} }
 //! limits is the forward-compatible main shape; five_hour/seven_day are merged in as a fallback (a window that just rolled over disappears from limits).
 
+use crate::notes;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -95,6 +96,24 @@ pub struct UsageSnapshot {
     /// service answering with an error. Lets the card say "offline" instead of "error".
     #[serde(default)]
     pub offline: bool,
+    /// `note` as codes + arguments the card translates (W-23). Always set together with `note`
+    /// through `set_note`; empty for readings persisted before the codes existed (the card then
+    /// shows `note` as it is).
+    #[serde(default)]
+    pub note_parts: Vec<crate::notes::NotePart>,
+}
+
+impl UsageSnapshot {
+    /// Sets the note from its parts; `note` becomes their English rendering
+    pub fn set_note(&mut self, parts: Vec<crate::notes::NotePart>) {
+        self.note = crate::notes::render(&parts);
+        self.note_parts = parts;
+    }
+
+    pub fn clear_note(&mut self) {
+        self.note.clear();
+        self.note_parts.clear();
+    }
 }
 
 /// A transport failure that means "no network", not "the service refused"
@@ -376,7 +395,7 @@ pub fn start(app: AppHandle) {
                             set_and_broadcast(&app, |u| {
                                 u.backoff_until = 0;
                                 u.limited_sig.clear();
-                                u.note = "Credential refreshed — fetching".into();
+                                u.set_note(vec![notes::c("nCredRefreshed")]);
                             });
                             continue;
                         }
@@ -396,7 +415,7 @@ pub fn start(app: AppHandle) {
                 None => set_and_broadcast(&app, |u| {
                     if !desktop_live(u) {
                         u.status = "needsAuth".into();
-                        u.note = "No Claude Code credential found".into();
+                        u.set_note(vec![notes::c("nClaudeNoCred")]);
                     }
                 }),
                 Some((token, expired)) => {
@@ -408,11 +427,7 @@ pub fn start(app: AppHandle) {
                         },
                         other => other,
                     };
-                    let auth_note = if expired {
-                        "Credential expired — run any claude command (or chat with Claude) to refresh it"
-                    } else {
-                        "Credential rejected (switched accounts?)"
-                    };
+                    let auth_note = notes::c(if expired { "nClaudeExpired" } else { "nClaudeRejected" });
                     match result {
                         Ok(windows) => {
                             consecutive_429 = 0;
@@ -421,7 +436,7 @@ pub fn start(app: AppHandle) {
                                 u.windows = windows;
                                 u.fetched_at = now_ms();
                                 u.source = "api".into();
-                                u.note.clear();
+                                u.clear_note();
                                 u.offline = false;
                                 u.backoff_until = 0;
                                 u.limited_sig.clear();
@@ -430,7 +445,7 @@ pub fn start(app: AppHandle) {
                         Err(FetchErr::NeedsAuth) => set_and_broadcast(&app, |u| {
                             if !desktop_live(u) {
                                 u.status = "needsAuth".into();
-                                u.note = auth_note.into();
+                                u.set_note(vec![auth_note]);
                             }
                         }),
                         Err(FetchErr::RateLimited(ra)) => {
@@ -439,18 +454,14 @@ pub fn start(app: AppHandle) {
                             let sig = token_sig(&token);
                             // An expired token gets a 429 with an hour-long Retry-After rather than a
                             // 401, so "rate limited" alone would send the user looking in the wrong place
-                            let note = if expired {
-                                "Credential expired — run any claude command (or chat with Claude) to refresh it; the old token is rate-limited until then".to_string()
-                            } else {
-                                format!("Rate limited, retrying in {wait}s")
-                            };
+                            let note = if expired { notes::c("nClaudeExpiredLimited") } else { notes::p("nRateLimited", &[&wait.to_string()]) };
                             set_and_broadcast(&app, |u| {
                                 // A live Desktop sample is not made stale by the API refusing the CLI token
                                 if !desktop_live(u) {
                                     if !u.windows.is_empty() {
                                         u.status = "stale".into();
                                     }
-                                    u.note = note;
+                                    u.set_note(vec![note]);
                                 }
                                 u.backoff_until = now_ms() + wait * 1000;
                                 u.limited_sig = sig;
@@ -460,7 +471,7 @@ pub fn start(app: AppHandle) {
                             if !desktop_live(u) {
                                 u.status = if u.windows.is_empty() { "error" } else { "stale" }.into();
                                 u.offline = true;
-                                u.note = format!("Offline — {msg}");
+                                u.set_note(vec![notes::p("nOffline", &[&msg])]);
                             }
                         }),
                         Err(FetchErr::Other(msg)) => set_and_broadcast(&app, |u| {
@@ -471,7 +482,7 @@ pub fn start(app: AppHandle) {
                                 } else {
                                     u.status = "stale".into();
                                 }
-                                u.note = msg;
+                                u.set_note(vec![notes::text(msg)]);
                             }
                         }),
                     }

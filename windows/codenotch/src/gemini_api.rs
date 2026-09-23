@@ -12,6 +12,7 @@
 //!     bucketed by `last_seen`; reasoning is already inside output, so it is not added again.
 //! Months and days are local time. There is no limit, so the windows are counts, not percentages.
 
+use crate::notes;
 use crate::usage::{now_ms, LimitWindow, UsageSnapshot};
 use crate::AppState;
 use chrono::{Datelike, Local, TimeZone};
@@ -241,14 +242,15 @@ pub fn snapshot(sources: &[(&str, TokenUsage)], now: u64) -> UsageSnapshot {
     for (name, u) in sources {
         windows.push(tokens("source", format!("{name} · this month"), u.month, None));
     }
-    UsageSnapshot {
+    let mut s = UsageSnapshot {
         status: "ok".into(),
         windows,
         fetched_at: now,
-        note: format!("{} calls this month · billed per token, no limit · counted from local logs; your API key is never read", total.calls),
         source: "local".into(),
         ..Default::default()
-    }
+    };
+    s.set_note(vec![notes::p("nGeminiCalls", &[&total.calls.to_string()]), notes::c("nPerToken"), notes::c("nLocalLogs")]);
+    s
 }
 
 /// Local-only: nothing to persist, a fresh count is one disk read away
@@ -379,7 +381,9 @@ mod tests {
         assert_eq!(s.windows[0].count, Some(1_500_010));
         assert!(s.windows.iter().all(|w| w.used == 0.0 && w.unit == "tokens" && w.derived));
         assert_eq!(s.windows[0].resets_at, Some(at(2026, 10, 1, 0)));
-        assert!(s.note.starts_with("13 calls"));
+        assert_eq!(s.note, "13 calls this month · billed per token, no limit · counted from local logs; your API key is never read");
+        assert_eq!(s.note_parts[0], notes::p("nGeminiCalls", &["13"]));
+
     }
 
 }

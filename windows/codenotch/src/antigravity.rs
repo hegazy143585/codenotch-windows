@@ -35,6 +35,7 @@
 //!
 //! Read only; token values are never cached and never appear in any log.
 
+use crate::notes;
 use crate::usage::{LimitWindow, UsageSnapshot};
 use crate::AppState;
 use std::path::PathBuf;
@@ -477,7 +478,7 @@ fn read_once(rt: &mut Runtime, prev: &UsageSnapshot) -> UsageSnapshot {
                 snap.status = "ok".into();
                 snap.windows = w;
                 snap.fetched_at = now_ms();
-                snap.note = "via Antigravity".into();
+                snap.set_note(vec![notes::p("nVia", &["Antigravity"])]);
                 return snap;
             }
             Err(e) => {
@@ -495,7 +496,7 @@ fn read_once(rt: &mut Runtime, prev: &UsageSnapshot) -> UsageSnapshot {
                 snap.status = "ok".into();
                 snap.windows = w;
                 snap.fetched_at = now_ms();
-                snap.note = "via Antigravity".into();
+                snap.set_note(vec![notes::p("nVia", &["Antigravity"])]);
                 return snap;
             }
             Err(e) => bridge_err = e,
@@ -508,7 +509,7 @@ fn read_once(rt: &mut Runtime, prev: &UsageSnapshot) -> UsageSnapshot {
     if rt.ever_bridged && !prev.windows.is_empty() {
         snap = prev.clone();
         snap.status = "stale".into();
-        snap.note = "Antigravity is closed — last reading kept".into();
+        snap.set_note(vec![notes::c("nAgClosed")]);
         return snap;
     }
     // 3. Credential path
@@ -521,13 +522,13 @@ fn read_once(rt: &mut Runtime, prev: &UsageSnapshot) -> UsageSnapshot {
                     snap.status = "ok".into();
                     snap.windows = w;
                     snap.fetched_at = now_ms();
-                    snap.note = format!("{} · via Google", tier.clone().unwrap_or_default());
+                    snap.set_note(vec![notes::text(tier.clone().unwrap_or_default()), notes::p("nVia", &["Google"])]);
                     return snap;
                 }
             }
             Err(e) if e == "needsAuth" => {
                 snap.status = "needsAuth".into();
-                snap.note = "Antigravity's Google session was rejected — sign in again in Antigravity".into();
+                snap.set_note(vec![notes::c("nAgRejected")]);
                 return snap;
             }
             Err(e) => crate::applog(&format!("antigravity: loadCodeAssist {e}")),
@@ -552,10 +553,11 @@ fn read_once(rt: &mut Runtime, prev: &UsageSnapshot) -> UsageSnapshot {
         expired: false,
         unit: String::new(),
     }];
-    snap.note = match tier {
-        Some(t) => format!("{t} · Google publishes no quota for this account"),
-        None => "Open Antigravity to read its quota".into(),
-    };
+    snap.set_note(match tier {
+        Some(t) => vec![notes::text(t), notes::c("nAgNoQuota")],
+        None => vec![notes::c("nAgOpen")],
+    });
+
     snap
 }
 

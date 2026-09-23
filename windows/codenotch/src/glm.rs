@@ -8,6 +8,7 @@
 //! The endpoint is not a published API. Errors can arrive inside an HTTP 200 envelope
 //! (`{"code":401,"success":false}`), so the envelope is read before the payload is trusted.
 
+use crate::notes;
 use crate::remote::{self, s, Fetch, Spec};
 use crate::usage::{LimitWindow, UsageSnapshot};
 use std::sync::atomic::AtomicBool;
@@ -107,7 +108,7 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
     let code = v.get("code").and_then(|x| x.as_i64());
     if !(success || code.is_none() || code == Some(200)) {
         return match code {
-            Some(401 | 403) => Fetch::NeedsAuth("Z.ai rejected the plan key — sign in again in the tool that holds it".into()),
+            Some(401 | 403) => Fetch::NeedsAuth(vec![notes::c("nZaiRejected")]),
             Some(429) => Fetch::RateLimited(0),
             Some(c) => Fetch::Other(format!("Z.ai answered code {c}")),
             None => Fetch::Other("Z.ai answered an error".into()),
@@ -117,11 +118,13 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
     let mut windows: Vec<LimitWindow> = data.get("limits").and_then(|l| l.as_array()).map(|a| a.iter().filter_map(window).collect()).unwrap_or_default();
     let rank = |id: &str| match id { "session" => 0, "weekly" => 1, "mcp" => 2, _ => 3 };
     windows.sort_by(|a, b| rank(&a.id).cmp(&rank(&b.id)).then(a.id.cmp(&b.id)));
-    let plan = s(data.get("level")).map(|l| format!("{} · ", remote::cap(&l))).unwrap_or_default();
+    let mut note: Vec<_> = s(data.get("level")).map(|l| notes::text(remote::cap(&l))).into_iter().collect();
     if windows.is_empty() {
-        return Fetch::Nothing(format!("{plan}Z.ai reported no usage windows"));
+        note.push(notes::p("nNoWindows", &["Z.ai"]));
+        return Fetch::Nothing(note);
     }
-    Fetch::Ok { windows, note: format!("{plan}GLM Coding Plan") }
+    note.push(notes::text("GLM Coding Plan"));
+    Fetch::Ok { windows, note }
 }
 
 fn window(l: &serde_json::Value) -> Option<LimitWindow> {
@@ -157,7 +160,7 @@ fn fetch() -> Fetch {
         .set("Authorization", &c.token)
         .set("Content-Type", "application/json")
         .call();
-    remote::call(resp, "Z.ai rejected the plan key — sign in again in the tool that holds it", |v| parse(&v))
+    remote::call(resp, notes::c("nZaiRejected"), |v| parse(&v))
 }
 
 /// For doctor: where the key came from, never the key
@@ -211,7 +214,8 @@ mod tests {
         assert!((windows[0].used - 0.125).abs() < 1e-9);
         assert_eq!(windows[0].resets_at, Some(1_788_682_200_000));
         assert_eq!(windows[2].resets_at, None, "MCP has no reset and is kept anyway");
-        assert_eq!(note, "Pro · GLM Coding Plan");
+        assert_eq!(notes::render(&note), "Pro · GLM Coding Plan");
+
     }
 
     #[test]

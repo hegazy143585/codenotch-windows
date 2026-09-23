@@ -4,6 +4,7 @@
 //! entry there is another vendor's key and is never used. `percent` is already "used".
 //! A 403 means the key has no Go subscription: nothing to meter, not a sign-in problem.
 
+use crate::notes;
 use crate::remote::{self, iso_ms, s, Fetch, Spec};
 use crate::usage::{LimitWindow, UsageSnapshot};
 use std::sync::atomic::AtomicBool;
@@ -46,16 +47,17 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
     if windows.is_empty() {
         return Fetch::Other("OpenCode answered without usage windows".into());
     }
-    Fetch::Ok { windows, note: "OpenCode Go".into() }
+    Fetch::Ok { windows, note: vec![notes::text("OpenCode Go")] }
 }
 
 fn fetch() -> Fetch {
     let Some(k) = key() else { return Fetch::Absent };
     let resp = remote::agent().get(ENDPOINT).set("Authorization", &format!("Bearer {k}")).set("Accept", "application/json").call();
     if let Err(ureq::Error::Status(403, _)) = resp {
-        return Fetch::Nothing("No OpenCode Go subscription on this key".into());
+        return Fetch::Nothing(vec![notes::c("nOpencodeNoSub")]);
     }
-    remote::call(resp, "OpenCode rejected the Go key — run `opencode auth login` again", |v| parse(&v))
+    remote::call(resp, notes::c("nOpencodeRejected"), |v| parse(&v))
+
 }
 
 pub fn probe() -> String {

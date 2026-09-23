@@ -6,6 +6,7 @@
 //! `OLLAMA_HOST` pointing elsewhere is ignored — and redirects are refused, so monitoring can never
 //! be moved to another host.
 
+use crate::notes;
 use crate::usage::{now_ms, UsageSnapshot};
 use crate::AppState;
 use std::time::Duration;
@@ -117,12 +118,14 @@ fn describe(m: &Model) -> String {
 }
 
 pub fn snapshot_from(models: &[Model], now: u64) -> UsageSnapshot {
-    let note = if models.is_empty() {
-        "Server running · no model loaded".to_string()
+    let first = if models.is_empty() {
+        notes::c("nOllamaNoModel")
     } else {
-        format!("Loaded: {}", models.iter().map(describe).collect::<Vec<_>>().join("; "))
+        notes::p("nOllamaLoaded", &[&models.iter().map(describe).collect::<Vec<_>>().join("; ")])
     };
-    UsageSnapshot { status: "ok".into(), fetched_at: now, note: format!("{note} · local server, no quota"), source: "local".into(), ..Default::default() }
+    let mut s = UsageSnapshot { status: "ok".into(), fetched_at: now, source: "local".into(), ..Default::default() };
+    s.set_note(vec![first, notes::c("nLocalNoQuota")]);
+    s
 }
 
 enum ReadErr {
@@ -146,13 +149,17 @@ fn read_once() -> UsageSnapshot {
     match fetch(&address()) {
         Ok(models) => snapshot_from(&models, now_ms()),
         // Installed but the server is not up: say so rather than hiding the provider
-        Err(ReadErr::Unavailable) if installed() => UsageSnapshot {
-            status: "none".into(),
-            note: "Ollama server not running — open Ollama to see loaded models".into(),
-            ..Default::default()
-        },
+        Err(ReadErr::Unavailable) if installed() => {
+            let mut s = UsageSnapshot { status: "none".into(), ..Default::default() };
+            s.set_note(vec![notes::c("nOllamaDown")]);
+            s
+        }
         Err(ReadErr::Unavailable) => UsageSnapshot { status: "absent".into(), ..Default::default() },
-        Err(ReadErr::Other(e)) => UsageSnapshot { status: "error".into(), note: e, ..Default::default() },
+        Err(ReadErr::Other(e)) => {
+            let mut s = UsageSnapshot { status: "error".into(), ..Default::default() };
+            s.set_note(vec![notes::text(e)]);
+            s
+        }
     }
 }
 
@@ -227,7 +234,9 @@ mod tests {
         let s = snapshot_from(&m, 1);
         assert_eq!(s.status, "ok");
         assert!(s.windows.is_empty(), "a local runtime has no quota to draw");
-        assert!(s.note.starts_with("Server running · no model loaded"));
+        assert_eq!(s.note, "Server running · no model loaded · local server, no quota");
+        assert_eq!(s.note_parts, vec![notes::c("nOllamaNoModel"), notes::c("nLocalNoQuota")]);
+
     }
 
     #[test]

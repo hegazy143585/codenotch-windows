@@ -21,6 +21,8 @@ activity through `codenotch-hook --provider <id>`. The page fetches the same lis
 Each entry carries `freshness` (live / stale / offline / error / needs_auth / no_data) and `age_ms`,
 computed in Rust (`providers::freshness`); windows whose reset passed after the reading are `expired`.
 `providers::start_clock` republishes every 30 s and refreshes every provider after sleep/resume.
+Provider notes are set with `UsageSnapshot::set_note(parts)` (`notes.rs`): stable codes + arguments that the card
+translates, plus the English `note` rendered from the same templates (W-23).
 
 ## Provider matrix
 | Provider | Usage source | Source type | Activity source | Activity type |
@@ -54,4 +56,5 @@ HTTP adapters with a borrowed credential use `remote.rs` (poll loop, persisted 4
 rules) and supply only `fetch`; they register as a `providers::Simple` entry.
 A provider with usage needs one module (`load_persisted` / `start` / `request_refresh`, writing its slot
 and calling `providers::publish`), one `Provider` impl in `providers.rs`, and one line in `REGISTRY`.
-No UI change. A provider with activity only needs no code: it pushes events through the hook.
+Notes go through `set_note`; a new sentence needs a code in `notes::EN` plus its `en` and `ar` entries in the
+card's `STR` (the i18n tests fail otherwise). No other UI change. A provider with activity only needs no code: it pushes events through the hook.

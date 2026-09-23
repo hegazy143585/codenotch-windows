@@ -6,6 +6,7 @@
 //! spend over the monthly cap (`totalCost + monthlyCredits`); 5-hour and weekly windows are added when
 //! their caps are known. A `resetAt` of 0 means "none", not 1970.
 
+use crate::notes;
 use crate::remote::{self, s, Fetch, Spec};
 use crate::usage::{LimitWindow, UsageSnapshot};
 use std::sync::atomic::AtomicBool;
@@ -55,7 +56,7 @@ pub fn windows(summary: &serde_json::Value, credits: &serde_json::Value, subscri
     let remaining = credits.get("credits").and_then(|c| n(c, "monthlyCredits")).unwrap_or(0.0);
     let cap = if used > 0.0 || remaining > 0.0 { used + remaining } else { 0.0 };
     if cap <= 0.0 {
-        return Fetch::Nothing("Command Code has nothing metered on this account yet".into());
+        return Fetch::Nothing(vec![notes::p("nNothingMetered", &["Command Code"])]);
     }
     let mut out = vec![LimitWindow { id: "monthly".into(), label: "Monthly limit".into(), used: (used / cap).clamp(0.0, 1.0), resets_at: date_ms(sub.get("currentPeriodEnd")), ..Default::default() }];
     let limits = credits.get("windowLimits");
@@ -64,11 +65,12 @@ pub fn windows(summary: &serde_json::Value, credits: &serde_json::Value, subscri
         let Some(c) = n(e, "cap").filter(|c| *c > 0.0) else { continue };
         out.push(LimitWindow { id: key.into(), label: label.into(), used: (n(e, "used").unwrap_or(0.0) / c).clamp(0.0, 1.0), resets_at: date_ms(e.get("resetAt")), ..Default::default() });
     }
-    let plan = plan_name(s(sub.get("planId"))).map(|p| format!("{p} · ")).unwrap_or_default();
-    Fetch::Ok { windows: out, note: format!("{plan}Command Code") }
+    let mut note: Vec<_> = plan_name(s(sub.get("planId"))).map(notes::text).into_iter().collect();
+    note.push(notes::text("Command Code"));
+    Fetch::Ok { windows: out, note }
 }
 
-const AUTH_NOTE: &str = "Command Code rejected the key — sign in again in the Command Code app";
+const AUTH_NOTE: &str = "nCmdRejected";
 
 fn get(path: &str, key: &str, query: &[(&str, &str)]) -> Result<serde_json::Value, Fetch> {
     let mut req = remote::agent()
@@ -81,7 +83,7 @@ fn get(path: &str, key: &str, query: &[(&str, &str)]) -> Result<serde_json::Valu
         req = req.query(k, v);
     }
     let mut out = None;
-    let f = remote::call(req.call(), AUTH_NOTE, |v| {
+    let f = remote::call(req.call(), notes::c(AUTH_NOTE), |v| {
         out = Some(v);
         Fetch::Absent
     });
@@ -142,7 +144,8 @@ mod tests {
         assert!((w[0].used - 0.25).abs() < 1e-9);
         assert_eq!(w[0].resets_at, Some(1_790_812_800_000));
         assert_eq!(w[1].resets_at, Some(1_790_000_000_000), "seconds are converted");
-        assert_eq!(note, "GOAT · Command Code");
+        assert_eq!(notes::render(&note), "GOAT · Command Code");
+
     }
 
     #[test]

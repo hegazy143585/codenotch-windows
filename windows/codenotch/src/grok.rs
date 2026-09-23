@@ -5,6 +5,7 @@
 //! customer IdP whose token is meant for a private proxy, and it must never reach the public host.
 //! Refreshing the token is Grok CLI's job; an expired one asks the user to run `grok login`.
 
+use crate::notes;
 use crate::remote::{self, iso_ms, s, Fetch, Spec};
 use crate::usage::{now_ms, LimitWindow, UsageSnapshot};
 use std::sync::atomic::AtomicBool;
@@ -87,9 +88,9 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
         windows.push(LimitWindow { id: "credits".into(), label: "Weekly limit".into(), used: 0.0, resets_at: reset, ..Default::default() });
     }
     if windows.is_empty() {
-        return Fetch::Nothing("Grok has nothing metered on this account yet".into());
+        return Fetch::Nothing(vec![notes::p("nNothingMetered", &["Grok"])]);
     }
-    Fetch::Ok { windows, note: "Grok CLI".into() }
+    Fetch::Ok { windows, note: vec![notes::text("Grok CLI")] }
 }
 
 fn session() -> Option<Session> {
@@ -99,7 +100,7 @@ fn session() -> Option<Session> {
 fn fetch() -> Fetch {
     let Some(sess) = session() else { return Fetch::Absent };
     if sess.expires_at.is_some_and(|t| t <= now_ms()) {
-        return Fetch::NeedsAuth("Grok sign-in expired — run `grok login` to refresh it".into());
+        return Fetch::NeedsAuth(vec![notes::c("nGrokExpired")]);
     }
     let resp = remote::agent()
         .get(ENDPOINT)
@@ -107,7 +108,8 @@ fn fetch() -> Fetch {
         .set("X-XAI-Token-Auth", "xai-grok-cli")
         .set("Accept", "application/json")
         .call();
-    remote::call(resp, "Grok rejected the sign-in — run `grok login`", |v| parse(&v))
+    remote::call(resp, notes::c("nGrokRejected"), |v| parse(&v))
+
 }
 
 pub fn probe() -> String {

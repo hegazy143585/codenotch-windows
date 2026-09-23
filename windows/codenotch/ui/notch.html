@@ -173,7 +173,20 @@ const STR={
     justNow:'just now',mAgo:'{n}m ago',hAgo:'{n}h ago',dAgo:'{n}d ago',
     tokens:'~{n} tokens',left:'{n} left',reqs:'{n} requests',req1:'1 request',reqToday:'~{n} requests today',req1Today:'~1 request today',noReqToday:'no requests today',
     actHooks:'Activity: live from Claude Code hooks',actEvent:'Activity: live, reported by the tool',
-    actClaudeEst:'Activity: estimated — install Claude Code hooks from the tray for exact state',actEst:'Activity: estimated from local files, may lag',actNone:'Activity: not supported for this tool'},
+    actClaudeEst:'Activity: estimated — install Claude Code hooks from the tray for exact state',actEst:'Activity: estimated from local files, may lag',actNone:'Activity: not supported for this tool',
+    /* Provider notes (W-23): the codes of src/notes.rs; en must equal its templates */
+    nRateLimited:'Rate limited — retrying in {0}s',nOffline:'Offline — {0}',nLiveFailed:'Live read failed ({0})',nVia:'via {0}',
+    nNoWindows:'{0} reported no usage windows',nNothingMetered:'{0} has nothing metered on this account yet',nUnlimitedQuotas:'{0} reported no metered quotas (unlimited)',nCredRefreshed:'Credential refreshed — fetching',
+    nClaudeNoCred:'No Claude Code credential found',nClaudeExpired:'Credential expired — run any claude command (or chat with Claude) to refresh it',nClaudeExpiredLimited:'Credential expired — run any claude command (or chat with Claude) to refresh it; the old token is rate-limited until then',nClaudeRejected:'Credential rejected (switched accounts?)',
+    nViaDesktop:'Live via Claude Desktop (it samples every 15 min)',nCodexExpired:'Codex sign-in expired — open Codex once to refresh it',nCodexRejected:'Codex rejected its sign-in — sign in to Codex again',nFromLastRun:'from last Codex run',
+    nCodexNoSnapshot:'Codex has not recorded a usage snapshot yet',nCursorSignIn:'Sign in to Cursor (the editor) to see usage.',nCursorRejected:'Cursor session was rejected — sign in again in the editor',nCursorUnlimited:'Unlimited on the {0} plan — nothing to meter',
+    nCursorNothing:'The {0} plan has nothing for Cursor to meter yet',nCursorUnlimitedAny:'Unlimited plan — nothing to meter',nCursorNothingAny:'This plan has nothing for Cursor to meter yet',nAgClosed:'Antigravity is closed — last reading kept',
+    nAgRejected:'Antigravity’s Google session was rejected — sign in again in Antigravity',nAgNoQuota:'Google publishes no quota for this account',nAgOpen:'Open Antigravity to read its quota',nGeminiCalls:'{0} calls this month',
+    nPerToken:'billed per token, no limit',nLocalLogs:'counted from local logs; your API key is never read',nOllamaLoaded:'Loaded: {0}',nOllamaNoModel:'Server running · no model loaded',
+    nLocalNoQuota:'local server, no quota',nOllamaDown:'Ollama server not running — open Ollama to see loaded models',nOllamaNoUsage:'No Ollama cloud usage recorded yet for this period',nNoResetDate:'the API publishes no reset date',
+    nOllamaKeyRejected:'Ollama rejected the API key — create a new one at ollama.com/settings/keys',nCmdRejected:'Command Code rejected the key — sign in again in the Command Code app',nGhRejected:'GitHub rejected the token — run `gh auth login` and make sure Copilot is enabled',nZaiRejected:'Z.ai rejected the plan key — sign in again in the tool that holds it',
+    nGrokExpired:'Grok sign-in expired — run `grok login` to refresh it',nGrokRejected:'Grok rejected the sign-in — run `grok login`',nOpencodeNoSub:'No OpenCode Go subscription on this key',nOpencodeRejected:'OpenCode rejected the Go key — run `opencode auth login` again',
+    nPplxCounts:'counts left; no totals or reset times are published',nPplxSignIn:'Sign in, or pass Perplexity’s check: click the Perplexity cell'},
   ar:{usageOf:'استخدام {name}',signIn:'سجّل الدخول إلى {who} لرؤية الاستخدام.',waiting:'في انتظار أول قراءة…',
     reset:'أُعيد الضبط',windowReset:'أُعيد ضبط الفترة — في انتظار قراءة جديدة',used:'مُستخدم {p}%',
     resetting:'يُعاد الضبط…',resetsIn:'يُعاد الضبط بعد {m} دقيقة',resetsAt:'يُعاد الضبط الساعة {t}',resetsOn:'يُعاد الضبط {d} {t}',
@@ -181,7 +194,20 @@ const STR={
     justNow:'الآن',mAgo:'قبل {n} د',hAgo:'قبل {n} س',dAgo:'قبل {n} يوم',
     tokens:'~{n} رمز',left:'متبقٍ {n}',reqs:'{n} طلب',req1:'طلب واحد',reqToday:'~{n} طلب اليوم',req1Today:'~طلب واحد اليوم',noReqToday:'لا طلبات اليوم',
     actHooks:'النشاط: مباشر من روابط Claude Code',actEvent:'النشاط: مباشر، تُبلغ عنه الأداة',
-    actClaudeEst:'النشاط: تقديري — ثبّت روابط Claude Code من الدرج لحالة دقيقة',actEst:'النشاط: تقديري من الملفات المحلية، وقد يتأخر',actNone:'النشاط: غير مدعوم لهذه الأداة'},
+    actClaudeEst:'النشاط: تقديري — ثبّت روابط Claude Code من الدرج لحالة دقيقة',actEst:'النشاط: تقديري من الملفات المحلية، وقد يتأخر',actNone:'النشاط: غير مدعوم لهذه الأداة',
+    /* Provider notes (W-23): the codes of src/notes.rs; en must equal its templates */
+    nRateLimited:'تم تجاوز حد الطلبات — إعادة المحاولة بعد {0} ث',nOffline:'غير متصل — {0}',nLiveFailed:'تعذّرت القراءة المباشرة ({0})',nVia:'عبر {0}',
+    nNoWindows:'لم يُبلغ {0} عن فترات استخدام',nNothingMetered:'لا شيء يُقاس في {0} على هذا الحساب بعد',nUnlimitedQuotas:'لم يُبلغ {0} عن حصص مقيسة (غير محدود)',nCredRefreshed:'تم تحديث بيانات الاعتماد — جارٍ الجلب',
+    nClaudeNoCred:'لم يُعثر على بيانات اعتماد Claude Code',nClaudeExpired:'انتهت صلاحية بيانات الاعتماد — شغّل أي أمر claude (أو تحدّث مع Claude) لتحديثها',nClaudeExpiredLimited:'انتهت صلاحية بيانات الاعتماد — شغّل أي أمر claude (أو تحدّث مع Claude) لتحديثها؛ الرمز القديم مقيّد بحد الطلبات حتى ذلك الحين',nClaudeRejected:'رُفضت بيانات الاعتماد (هل بدّلت الحساب؟)',
+    nViaDesktop:'مباشر عبر Claude Desktop (يأخذ قراءة كل 15 دقيقة)',nCodexExpired:'انتهت صلاحية تسجيل الدخول إلى Codex — افتح Codex مرة لتحديثه',nCodexRejected:'رفض Codex تسجيل الدخول — سجّل الدخول إلى Codex مجددًا',nFromLastRun:'من آخر تشغيل لـ Codex',
+    nCodexNoSnapshot:'لم يسجّل Codex لقطة استخدام بعد',nCursorSignIn:'سجّل الدخول إلى Cursor (المحرر) لرؤية الاستخدام.',nCursorRejected:'رُفضت جلسة Cursor — سجّل الدخول مجددًا في المحرر',nCursorUnlimited:'خطة {0} غير محدودة — لا شيء يُقاس',
+    nCursorNothing:'لا يوجد في خطة {0} ما يقيسه Cursor بعد',nCursorUnlimitedAny:'خطة غير محدودة — لا شيء يُقاس',nCursorNothingAny:'لا يوجد في هذه الخطة ما يقيسه Cursor بعد',nAgClosed:'Antigravity مغلق — أُبقيت آخر قراءة',
+    nAgRejected:'رُفضت جلسة Google في Antigravity — سجّل الدخول مجددًا في Antigravity',nAgNoQuota:'لا تنشر Google حصة لهذا الحساب',nAgOpen:'افتح Antigravity لقراءة حصته',nGeminiCalls:'{0} طلب هذا الشهر',
+    nPerToken:'يُحتسب لكل رمز، بلا حد',nLocalLogs:'محسوب من السجلات المحلية؛ لا يُقرأ مفتاح API الخاص بك أبدًا',nOllamaLoaded:'محمّل: {0}',nOllamaNoModel:'الخادم يعمل · لا يوجد نموذج محمّل',
+    nLocalNoQuota:'خادم محلي، بلا حصة',nOllamaDown:'خادم Ollama لا يعمل — افتح Ollama لرؤية النماذج المحمّلة',nOllamaNoUsage:'لا يوجد استخدام سحابي مسجّل في Ollama لهذه الفترة بعد',nNoResetDate:'لا تنشر الواجهة البرمجية موعد إعادة الضبط',
+    nOllamaKeyRejected:'رفض Ollama مفتاح API — أنشئ مفتاحًا جديدًا من ollama.com/settings/keys',nCmdRejected:'رفض Command Code المفتاح — سجّل الدخول مجددًا في تطبيق Command Code',nGhRejected:'رفض GitHub الرمز — شغّل `gh auth login` وتأكد من تفعيل Copilot',nZaiRejected:'رفض Z.ai مفتاح الخطة — سجّل الدخول مجددًا في الأداة التي تحمله',
+    nGrokExpired:'انتهت صلاحية تسجيل الدخول إلى Grok — شغّل `grok login` لتحديثه',nGrokRejected:'رفض Grok تسجيل الدخول — شغّل `grok login`',nOpencodeNoSub:'لا يوجد اشتراك OpenCode Go على هذا المفتاح',nOpencodeRejected:'رفض OpenCode مفتاح Go — شغّل `opencode auth login` مجددًا',
+    nPplxCounts:'الأعداد المتبقية؛ لا تُنشر المجاميع ولا مواعيد إعادة الضبط',nPplxSignIn:'سجّل الدخول، أو اجتز فحص Perplexity: انقر خلية Perplexity'},
   zh:{usageOf:'{name} 用量',signIn:'登录 {who} 后即可查看用量。',waiting:'正在等待首次读取…',
     reset:'已重置',windowReset:'窗口已重置 — 等待新的读数',used:'已用 {p}%',
     resetting:'正在重置…',resetsIn:'{m} 分钟后重置',resetsAt:'{t} 重置',resetsOn:'{d} {t} 重置',
@@ -209,7 +235,11 @@ const STR={
 };
 /* Window labels come from the providers in English; the common ones are translated here */
 const LABELS={
-  ar:{'Current session':'الجلسة الحالية','Weekly (all models)':'أسبوعي (كل النماذج)','Weekly (Opus)':'أسبوعي (Opus)','Weekly':'أسبوعي','Weekly limit':'الحد الأسبوعي','Monthly limit':'الحد الشهري','5h limit':'حد 5 ساعات','Tokens this month':'الرموز هذا الشهر','Tokens today':'الرموز اليوم','Included usage':'الاستخدام المشمول','On demand':'عند الطلب','Premium requests':'الطلبات المميزة','Pro searches':'عمليات بحث Pro'},
+  ar:{'Current session':'الجلسة الحالية','Weekly (all models)':'أسبوعي (كل النماذج)','Weekly (Opus)':'أسبوعي (Opus)','Weekly':'أسبوعي','Weekly limit':'الحد الأسبوعي','Monthly limit':'الحد الشهري','5h limit':'حد 5 ساعات','Tokens this month':'الرموز هذا الشهر','Tokens today':'الرموز اليوم','Included usage':'الاستخدام المشمول','On demand':'عند الطلب','Premium requests':'الطلبات المميزة','Pro searches':'عمليات بحث Pro',
+    'Weekly (model-scoped)':'أسبوعي (حسب النموذج)','API usage':'استخدام API','Chat requests':'طلبات الدردشة','Completions':'الإكمالات',
+    'Research':'البحث','Agentic research':'البحث الوكيلي','Labs':'Labs','Free queries':'استعلامات مجانية',
+    'Session usage':'استخدام الجلسة','Weekly usage':'الاستخدام الأسبوعي','Monthly usage':'الاستخدام الشهري','MCP (1 month)':'MCP (شهر واحد)',
+    'Usage':'الاستخدام','Requests today · no limit published':'طلبات اليوم · لا حد منشور'},
   zh:{'Current session':'当前会话','Weekly (all models)':'每周（所有模型）','Weekly (Opus)':'每周（Opus）','Weekly':'每周','Weekly limit':'每周限额','Monthly limit':'每月限额','5h limit':'5 小时限额','Tokens this month':'本月 tokens','Tokens today':'今日 tokens','Included usage':'套餐内用量','On demand':'按需用量','Premium requests':'高级请求','Pro searches':'Pro 搜索'},
   ja:{'Current session':'現在のセッション','Weekly (all models)':'週間（全モデル）','Weekly (Opus)':'週間（Opus）','Weekly':'週間','Weekly limit':'週間上限','Monthly limit':'月間上限','5h limit':'5 時間上限','Tokens this month':'今月のトークン','Tokens today':'今日のトークン','Included usage':'プラン内使用量','On demand':'従量課金','Premium requests':'プレミアムリクエスト','Pro searches':'Pro 検索'},
   ko:{'Current session':'현재 세션','Weekly (all models)':'주간(모든 모델)','Weekly (Opus)':'주간(Opus)','Weekly':'주간','Weekly limit':'주간 한도','Monthly limit':'월간 한도','5h limit':'5시간 한도','Tokens this month':'이번 달 토큰','Tokens today':'오늘 토큰','Included usage':'포함 사용량','On demand':'온디맨드','Premium requests':'프리미엄 요청','Pro searches':'Pro 검색'},
@@ -217,7 +247,39 @@ const LABELS={
 const LOCALE={ar:'ar',en:'en-US',zh:'zh-CN',ja:'ja-JP',ko:'ko-KR'};
 function lang(){ const l=stateSnap&&stateSnap.lang_resolved; return STR[l]?l:'en'; }
 function t(key,vars){ let s=(STR[lang()][key]??STR.en[key]??key); for(const k in (vars||{})) s=s.split('{'+k+'}').join(vars[k]); return s; }
-function label(s){ return (LABELS[lang()]||{})[s]||s; }
+/* Labels with a number or a name in them. Arabic counted nouns: plural for 3–10, singular otherwise */
+const arN=(n,one,many)=>`${n} ${(+n>=3&&+n<=10)?many:one}`;
+const LABEL_RULES={
+  ar:[[/^(\d+)m limit$/,m=>'حد '+arN(m[1],'دقيقة','دقائق')],[/^(\d+)h limit$/,m=>'حد '+arN(m[1],'ساعة','ساعات')],
+      [/^(\d+)d limit$/,m=>'حد '+arN(m[1],'يوم','أيام')],[/^Usage \((\d+) h\)$/,m=>`الاستخدام (${arN(m[1],'ساعة','ساعات')})`],
+      [/^Usage \((\d+) wk\)$/,m=>`الاستخدام (${arN(m[1],'أسبوع','أسابيع')})`],[/^(.+) · this month$/,m=>m[1]+' · هذا الشهر']],
+};
+function label(s){
+  const l=lang(), hit=(LABELS[l]||{})[s];
+  if(hit) return hit;
+  for(const [re,fn] of (LABEL_RULES[l]||[])){ const m=s.match(re); if(m) return fn(m); }
+  return s;
+}
+/* W-23: a provider note arrives as parts [{code,args}] plus its English rendering `note`. Codes are
+   translated with STR (zh/ja/ko fall back to English); `text` parts are names shown as they are.
+   The page uses the parts only when their English rendering equals `note` (same templates as
+   src/notes.rs), so a note set any other way, or an unknown code, still shows the English text. */
+function fillArgs(s,args){ return s.replace(/\{(\d+)\}/g,(_,i)=>(args||[])[+i]??''); }
+function partText(pt,l){
+  if(pt.code==='text') return (pt.args||[])[0]||'';
+  const tpl=(STR[l]&&STR[l][pt.code])??STR.en[pt.code];
+  return tpl==null?null:fillArgs(tpl,pt.args);
+}
+function joinParts(parts,l){
+  const out=[];
+  for(const pt of parts){ const s=partText(pt,l); if(s==null) return null; if(s) out.push(s); }
+  return out.join(' · ');
+}
+function noteText(snap){
+  const parts=snap.note_parts;
+  if(!parts||!parts.length||joinParts(parts,'en')!==snap.note) return snap.note||'';
+  return joinParts(parts,lang());
+}
 // W-12: Rust decides freshness per provider (live / stale / offline / error / needs_auth / no_data)
 function dimmed(p){ return p.freshness==='stale'||p.freshness==='offline'||p.freshness==='error'; }
 function freshnessLine(p){
@@ -315,9 +377,9 @@ function renderCard(){
   if(fl) html+=`<div class="c-sub">${esc(fl)}</div>`;
   if(snap.status==='needsAuth'){
     const who=p.id==='claude'?'Claude Code':p.name;
-    html+=`<div class="c-note">${esc(t('signIn',{who}))}<br>${esc(snap.note)}</div>`;
+    html+=`<div class="c-note">${esc(t('signIn',{who}))}<br>${esc(noteText(snap))}</div>`;
   }else if(!snap.windows.length){
-    html+=`<div class="c-note">${esc(snap.note||t('waiting'))}</div>`;
+    html+=`<div class="c-note">${esc(noteText(snap)||t('waiting'))}</div>`;
   }else{
     for(const w of snap.windows){
       if(w.count!=null){
@@ -336,7 +398,7 @@ function renderCard(){
         <div class="w-used">${w.derived?'~':''}${esc(t('used',{p:Math.round(w.used*100)}))}</div>
       </div>`;
     }
-    if(snap.note) html+=`<div class="c-note">${esc(snap.note)}</div>`;
+    if(snap.note) html+=`<div class="c-note">${esc(noteText(snap))}</div>`;
   }
   if(p.id==='claude'){ // live sessions (a full list with jump-to-session is a follow-up)
     const act=stateSnap.sessions.filter(s=>s.state!=='idle');

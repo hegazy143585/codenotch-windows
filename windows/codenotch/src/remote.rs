@@ -7,6 +7,7 @@
 //!   - no credential and no trace of the tool = "absent" (the cell stays hidden)
 //!   - one provider's thread never touches another's slot
 
+use crate::notes::{self, NotePart};
 use crate::usage::{now_ms, LimitWindow, UsageSnapshot};
 use crate::AppState;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,13 +15,15 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 pub enum Fetch {
-    Ok { windows: Vec<LimitWindow>, note: String },
-    /// Signed in, but nothing is metered (e.g. an unlimited plan); `note` says why
-    Nothing(String),
-    NeedsAuth(String),
+    Ok { windows: Vec<LimitWindow>, note: Vec<NotePart> },
+    /// Signed in, but nothing is metered (e.g. an unlimited plan); the note says why
+    Nothing(Vec<NotePart>),
+    NeedsAuth(Vec<NotePart>),
     /// Server-suggested wait in seconds (0 = none given)
     RateLimited(u64),
+    /// Detail from the network stack (shown verbatim after "Offline —")
     Offline(String),
+    /// An error detail, shown verbatim
     Other(String),
     /// No credential and no sign the tool is installed
     Absent,
@@ -47,39 +50,39 @@ pub fn backoff_secs(consecutive: u32, retry_after: u64) -> u64 {
 pub fn apply(prev: &UsageSnapshot, r: Fetch, now: u64, consecutive_429: u32) -> UsageSnapshot {
     let mut s = prev.clone();
     s.offline = false;
-    let keep_stale = |s: &mut UsageSnapshot, note: String| {
+    let keep_stale = |s: &mut UsageSnapshot, note: NotePart| {
         s.status = if s.windows.is_empty() { "error" } else { "stale" }.into();
-        s.note = note;
+        s.set_note(vec![note]);
     };
     match r {
         Fetch::Ok { windows, note } => {
             s.status = "ok".into();
             s.windows = windows;
-            s.note = note;
+            s.set_note(note);
             s.fetched_at = now;
             s.backoff_until = 0;
         }
         Fetch::Nothing(note) => {
             s.status = "none".into();
             s.windows.clear();
-            s.note = note;
+            s.set_note(note);
             s.fetched_at = now;
             s.backoff_until = 0;
         }
         Fetch::NeedsAuth(note) => {
             s.status = "needsAuth".into();
-            s.note = note;
+            s.set_note(note);
         }
         Fetch::RateLimited(ra) => {
             let wait = backoff_secs(consecutive_429, ra);
             s.backoff_until = now + wait * 1000;
-            keep_stale(&mut s, format!("Rate limited — retrying in {wait}s"));
+            keep_stale(&mut s, notes::p("nRateLimited", &[&wait.to_string()]));
         }
         Fetch::Offline(e) => {
             s.offline = true;
-            keep_stale(&mut s, format!("Offline — {e}"));
+            keep_stale(&mut s, notes::p("nOffline", &[&e]));
         }
-        Fetch::Other(e) => keep_stale(&mut s, e),
+        Fetch::Other(e) => keep_stale(&mut s, notes::text(e)),
         Fetch::Absent => {
             return UsageSnapshot { status: "absent".into(), ..Default::default() };
         }
@@ -162,13 +165,13 @@ pub fn agent() -> ureq::Agent {
 }
 
 /// Maps a ureq result to the shared outcomes; `ok` turns a 2xx body into the provider's result
-pub fn call(resp: Result<ureq::Response, ureq::Error>, auth_note: &str, ok: impl FnOnce(serde_json::Value) -> Fetch) -> Fetch {
+pub fn call(resp: Result<ureq::Response, ureq::Error>, auth_note: NotePart, ok: impl FnOnce(serde_json::Value) -> Fetch) -> Fetch {
     match resp {
         Ok(r) => match r.into_json::<serde_json::Value>() {
             Ok(v) => ok(v),
             Err(e) => Fetch::Other(format!("unreadable reply ({e})")),
         },
-        Err(ureq::Error::Status(401 | 403, _)) => Fetch::NeedsAuth(auth_note.into()),
+        Err(ureq::Error::Status(401 | 403, _)) => Fetch::NeedsAuth(vec![auth_note]),
         Err(ureq::Error::Status(429, r)) => Fetch::RateLimited(r.header("retry-after").and_then(|s| s.trim().parse().ok()).unwrap_or(0)),
         Err(ureq::Error::Status(code, _)) => Fetch::Other(format!("HTTP {code}")),
         Err(e) if crate::usage::is_offline(&e) => Fetch::Offline(format!("{e}")),
@@ -301,8 +304,9 @@ mod tests {
     #[test]
     fn a_reading_replaces_the_old_one_and_clears_backoff() {
         let prev = UsageSnapshot { backoff_until: 5, ..with_reading() };
-        let s = apply(&prev, Fetch::Ok { windows: vec![w(0.6)], note: "Pro".into() }, 100, 2);
+        let s = apply(&prev, Fetch::Ok { windows: vec![w(0.6)], note: vec![notes::text("Pro")] }, 100, 2);
         assert_eq!((s.status.as_str(), s.windows[0].used, s.fetched_at, s.backoff_until), ("ok", 0.6, 100, 0));
+        assert_eq!(s.note, "Pro");
     }
 
     #[test]
@@ -319,8 +323,11 @@ mod tests {
         let s = apply(&with_reading(), Fetch::Offline("dns".into()), 100, 0);
         assert!(s.offline);
         assert_eq!(s.status, "stale");
-        let s = apply(&s, Fetch::Ok { windows: vec![w(0.1)], note: String::new() }, 200, 0);
+        assert_eq!(s.note, "Offline — dns");
+        assert_eq!(s.note_parts, vec![notes::p("nOffline", &["dns"])]);
+        let s = apply(&s, Fetch::Ok { windows: vec![w(0.1)], note: vec![] }, 200, 0);
         assert!(!s.offline);
+        assert!(s.note.is_empty() && s.note_parts.is_empty(), "the old note does not survive a reading");
     }
 
     #[test]
@@ -334,12 +341,16 @@ mod tests {
         let s = apply(&with_reading(), Fetch::RateLimited(3_600), 1_000, 0);
         assert_eq!(s.backoff_until, 1_000 + 3_600_000);
         assert_eq!(s.windows[0].used, 0.3);
+        assert_eq!(s.note, "Rate limited — retrying in 3600s");
+        assert_eq!(s.note_parts, vec![notes::p("nRateLimited", &["3600"])]);
     }
 
     #[test]
     fn needs_auth_keeps_windows_for_context_but_says_sign_in() {
-        let s = apply(&with_reading(), Fetch::NeedsAuth("sign in".into()), 100, 0);
+        let s = apply(&with_reading(), Fetch::NeedsAuth(vec![notes::c("nGrokRejected")]), 100, 0);
         assert_eq!(s.status, "needsAuth");
+        assert_eq!(s.note, "Grok rejected the sign-in — run `grok login`");
+
     }
 
     #[test]

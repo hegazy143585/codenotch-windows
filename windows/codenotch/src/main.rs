@@ -10,6 +10,7 @@ mod server;
 mod state;
 mod tray;
 mod usage;
+mod notes;
 mod claude_desktop;
 mod claude_refresh;
 mod codex;

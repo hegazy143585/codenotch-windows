@@ -144,7 +144,7 @@ pub fn start(app: AppHandle) {
                                 u.windows = windows(&s);
                                 u.fetched_at = s.t;
                                 u.source = "desktop".into();
-                                u.note = "Live via Claude Desktop (it samples every 15 min)".into();
+                                u.set_note(vec![crate::notes::c("nViaDesktop")]);
                             });
                             crate::applog(&format!("claude desktop sample: session {}% weekly {}% at {}", s.five_hour, s.seven_day, s.t));
                         }

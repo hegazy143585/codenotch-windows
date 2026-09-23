@@ -131,33 +131,107 @@ mod tests {
         }
     }
 
-    /// Every card string exists in every language the tray offers (W-13)
-    #[test]
-    fn the_page_dictionary_is_complete_in_every_language() {
-        let html = include_str!("../ui/notch.html");
+
+    const PAGE: &str = include_str!("../ui/notch.html");
+
+    /// One language block of the page's `STR` dictionary
+    fn block(lang: &str) -> String {
+        let html = PAGE;
         let start = html.find("const STR={").expect("dictionary");
         let body = &html[start..start + html[start..].find("\n};").expect("end")];
-        let block = |lang: &str| {
-            let a = body.find(&format!("\n  {lang}:{{")).unwrap_or_else(|| panic!("{lang} missing"));
-            let rest = &body[a + 3..];
-            let b = rest.find("\n  ").map(|i| {
-                // the next language header starts a line with two spaces and `xx:{`
-                let mut j = i;
-                while let Some(k) = rest[j + 1..].find("\n  ") {
-                    let line = &rest[j + 1 + k + 3..];
-                    if line.len() > 3 && line.as_bytes()[2] == b':' && line.as_bytes()[3] == b'{' {
-                        return j + 1 + k;
-                    }
-                    j += 1 + k;
+        let a = body.find(&format!("\n  {lang}:{{")).unwrap_or_else(|| panic!("{lang} missing"));
+        let rest = &body[a + 3..];
+        let b = rest.find("\n  ").map(|i| {
+            // the next language header starts a line with two spaces and `xx:{`
+            let mut j = i;
+            while let Some(k) = rest[j + 1..].find("\n  ") {
+                let line = &rest[j + 1 + k + 3..];
+                if line.len() > 3 && line.as_bytes()[2] == b':' && line.as_bytes()[3] == b'{' {
+                    return j + 1 + k;
                 }
-                rest.len()
-            });
-            rest[..b.unwrap_or(rest.len())].to_string()
-        };
+                j += 1 + k;
+            }
+            rest.len()
+        });
+        rest[..b.unwrap_or(rest.len())].to_string()
+    }
+
+    /// The text of `key` in a language block (`key:'…'`)
+    fn value(block: &str, key: &str) -> Option<String> {
+        let pat = format!("{key}:'");
+        let mut from = 0;
+        while let Some(i) = block[from..].find(&pat) {
+            let at = from + i;
+            // a whole key: not the tail of a longer identifier
+            let whole = block[..at].chars().last().map(|c| !c.is_ascii_alphanumeric()).unwrap_or(true);
+            let v = &block[at + pat.len()..];
+            if whole {
+                return v.find('\'').map(|e| v[..e].to_string());
+            }
+            from = at + pat.len();
+        }
+        None
+    }
+
+    /// Provider-note keys (W-23) are `n` + an upper-case letter; the rest are card strings
+    fn is_note_key(k: &str) -> bool {
+        k.len() > 1 && k.starts_with('n') && k.as_bytes()[1].is_ascii_uppercase()
+    }
+
+    /// Arabic has every card string and every note (owner priority: Arabic + English). zh/ja/ko keep
+    /// every card string but may leave provider notes to the English fallback; no language defines a
+    /// key English lacks (W-13, W-23).
+    #[test]
+    fn the_page_dictionary_is_complete_in_every_language() {
         let en = keys(&block("en"));
         assert!(en.len() > 20, "{en:?}");
-        for l in ["ar", "zh", "ja", "ko"] {
-            assert_eq!(keys(&block(l)), en, "{l} does not define the same strings as en");
+        assert_eq!(keys(&block("ar")), en, "ar does not define the same strings as en");
+        let card: std::collections::BTreeSet<String> = en.iter().filter(|k| !is_note_key(k)).cloned().collect();
+        for l in ["zh", "ja", "ko"] {
+            let have = keys(&block(l));
+            assert!(have.is_subset(&en), "{l} defines keys en lacks: {:?}", have.difference(&en).collect::<Vec<_>>());
+            assert!(card.is_subset(&have), "{l} misses card strings: {:?}", card.difference(&have).collect::<Vec<_>>());
+        }
+    }
+
+    /// Every note code Rust can emit is in the page: English identical to the Rust template (the
+    /// page checks its English rendering against `note` before translating), Arabic its own text
+    /// with the same placeholders. And the page has no note key Rust does not know.
+    #[test]
+    fn every_note_code_is_translated_and_matches_the_rust_template() {
+        let (en, ar) = (block("en"), block("ar"));
+        for (code, tpl) in crate::notes::EN {
+            assert_eq!(value(&en, code).as_deref(), Some(*tpl), "en text of {code}");
+            let a = value(&ar, code).unwrap_or_else(|| panic!("{code} has no Arabic"));
+            assert!(!a.trim().is_empty() && a != *tpl, "{code} is not translated to Arabic");
+            for i in 0..4 {
+                let ph = format!("{{{i}}}");
+                assert_eq!(tpl.contains(&ph), a.contains(&ph), "{code}: placeholder {ph} differs in Arabic");
+            }
+        }
+        for k in keys(&en).into_iter().filter(|k| is_note_key(k)) {
+            assert!(crate::notes::EN.iter().any(|(c, _)| *c == k), "page note {k} is not a Rust note code");
+        }
+    }
+
+    /// The fixed window labels the adapters produce have Arabic text in the page's LABELS (numbered
+    /// ones like "3h limit" or "Usage (2 wk)" are handled by LABEL_RULES)
+    #[test]
+    fn fixed_window_labels_have_arabic() {
+        let start = PAGE.find("const LABELS={").expect("labels");
+        let ar = &PAGE[start..];
+        let ar = &ar[ar.find("\n  ar:{").expect("ar labels")..ar.find("\n  zh:{").expect("zh labels")];
+        for l in [
+            "Current session", "Weekly (all models)", "Weekly (Opus)", "Weekly (model-scoped)", "Weekly", "Weekly limit",
+            "Monthly limit", "5h limit", "Tokens this month", "Tokens today", "Included usage", "API usage", "On demand",
+            "Premium requests", "Chat requests", "Completions", "Pro searches", "Research", "Agentic research", "Labs",
+            "Free queries", "Session usage", "Weekly usage", "Monthly usage", "MCP (1 month)", "Usage",
+            "Requests today · no limit published",
+        ] {
+            assert!(ar.contains(&format!("'{l}':'")), "no Arabic for the label {l:?}");
+        }
+        for rule in [r"(\d+)m limit", r"(\d+)h limit", r"(\d+)d limit", r"Usage \((\d+) h\)", r"Usage \((\d+) wk\)", "(.+) · this month"] {
+            assert!(PAGE.contains(&format!("/^{rule}$/")), "no Arabic rule for {rule}");
         }
     }
 }

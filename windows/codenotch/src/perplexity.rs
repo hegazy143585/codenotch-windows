@@ -16,6 +16,7 @@
 //!
 //! The reply states only what is *left* (no totals, no reset times), so the card shows counts.
 
+use crate::notes;
 use crate::remote::{self, Fetch};
 use crate::usage::{now_ms, LimitWindow, UsageSnapshot};
 use crate::AppState;
@@ -97,7 +98,7 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
     if windows.is_empty() {
         return Fetch::Other("Perplexity answered without any quota".into());
     }
-    Fetch::Ok { windows, note: "Perplexity · counts left; no totals or reset times are published".into() }
+    Fetch::Ok { windows, note: vec![notes::text("Perplexity"), notes::c("nPplxCounts")] }
 }
 
 /// The report navigation → (status, body)
@@ -123,7 +124,8 @@ pub fn classify(status: u16, body: &str) -> Fetch {
             Ok(v) => parse(&v),
             Err(_) => Fetch::Other("Perplexity answered something that is not JSON".into()),
         },
-        401 | 403 => Fetch::NeedsAuth("Sign in, or pass Perplexity's check: click the Perplexity cell".into()),
+        401 | 403 => Fetch::NeedsAuth(vec![notes::c("nPplxSignIn")]),
+
         429 => Fetch::RateLimited(0),
         0 => Fetch::Offline("the page could not reach Perplexity".into()),
         s => Fetch::Other(format!("HTTP {s}")),

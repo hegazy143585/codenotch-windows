@@ -6,6 +6,7 @@
 //! exposes no billing-cycle reset, so the windows carry none rather than a guess. Per-model request
 //! counts ride along as count rows.
 
+use crate::notes;
 use crate::remote::{self, Fetch, Spec};
 use crate::usage::{LimitWindow, UsageSnapshot};
 use std::sync::atomic::AtomicBool;
@@ -68,15 +69,16 @@ pub fn parse(v: &serde_json::Value) -> Fetch {
         }
     }
     if windows.is_empty() {
-        return Fetch::Nothing("No Ollama cloud usage recorded yet for this period".into());
+        return Fetch::Nothing(vec![notes::c("nOllamaNoUsage")]);
     }
-    Fetch::Ok { windows, note: "Ollama cloud · the API publishes no reset date".into() }
+    Fetch::Ok { windows, note: vec![notes::text("Ollama cloud"), notes::c("nNoResetDate")] }
 }
 
 fn fetch() -> Fetch {
     let Some((k, _)) = key() else { return Fetch::Absent };
     let resp = remote::agent().get(ENDPOINT).set("Authorization", &format!("Bearer {k}")).set("Accept", "application/json").call();
-    remote::call(resp, "Ollama rejected the API key — create a new one at ollama.com/settings/keys", |v| parse(&v))
+    remote::call(resp, notes::c("nOllamaKeyRejected"), |v| parse(&v))
+
 }
 
 pub fn probe() -> String {
