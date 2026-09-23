@@ -96,6 +96,7 @@
   .c-sessions{margin-top:12px;border-top:1px solid #1e1e1e;padding-top:8px}
   .s-row{display:flex;align-items:center;gap:6px;font-size:11px;color:#b0b0b3;padding:2px 0}
   .s-dot{width:6px;height:6px;border-radius:3px;flex:0 0 auto}
+  .c-src{font-size:10px;color:#707070;margin-top:10px}
   #notice{
     position:absolute;left:8px;bottom:6px;right:80px;font-size:10px;color:#808080;
     background:rgba(0,0,0,.85);border-radius:8px;padding:4px 8px;display:none
@@ -220,6 +221,13 @@ function ago(ms){
   return m<60?`${m}m ago`:`${Math.round(m/60)}h ago`;
 }
 
+// W-08: say where the working/waiting state comes from, so "idle" is never mistaken for "can't tell"
+function activitySource(p){
+  const a=p.capabilities&&p.capabilities.activity;
+  if(a==='event') return p.id==='claude'?'Activity: live from Claude Code hooks':'Activity: live, reported by the tool';
+  if(a==='inferred') return p.id==='claude'?'Activity: estimated — install Claude Code hooks from the tray for exact state':'Activity: estimated from local files, may lag';
+  return 'Activity: not supported for this tool';
+}
 const STATE_DOT={running:RUNGREEN,attention:AMBER,done:'#57c7ff'};
 
 let hoverId='claude';
@@ -270,6 +278,7 @@ function renderCard(){
       html+=`</div>`;
     }
   }
+  html+=`<div class="c-src">${esc(activitySource(p))}</div>`;
   c.innerHTML=html;
   placeCard();
 }

@@ -46,6 +46,8 @@ pub struct Activity {
     pub detail: String,
     /// ms epoch
     pub since: u64,
+    /// Came through the event ingress (the tool reported it), not from a probe's guess
+    pub pushed: bool,
 }
 
 fn now_ms() -> u64 {
@@ -133,6 +135,7 @@ pub fn push(provider: &str, session: &str, state: &str, name: &str, detail: &str
                             "Working".into()
                         },
                         since,
+                        pushed: true,
                     },
                     expires: now + PUSH_TTL_MS,
                 },
@@ -291,6 +294,7 @@ fn cursor_activity(ctx: &mut Ctx) -> Vec<Activity> {
                     v.get("subtitle").and_then(|x| x.as_str()).unwrap_or("Working").to_string()
                 },
                 since,
+                pushed: false,
             });
         }
         out.sort_by(|a, b| b.since.cmp(&a.since));
@@ -423,6 +427,7 @@ fn codex_turns_in_progress(ctx: &mut Ctx) -> Vec<Activity> {
                 name,
                 detail: if waiting { "needs your input".into() } else { "Working".into() },
                 since: started_ms,
+                pushed: false,
             });
         }
         Some(out)
@@ -465,7 +470,7 @@ fn codex_activity(ctx: &mut Ctx) -> Vec<Activity> {
                 CodexStep::Aborted => false,
             };
             if busy {
-                ctx.rollout_last = vec![Activity { provider: "codex".into(), state: "busy".into(), name: "Codex".into(), detail: "Working".into(), since: at }];
+                ctx.rollout_last = vec![Activity { provider: "codex".into(), state: "busy".into(), name: "Codex".into(), detail: "Working".into(), since: at, pushed: false }];
             }
         }
     }
@@ -599,7 +604,7 @@ fn claude_activity() -> Vec<Activity> {
     }
     let last = CLAUDE_LAST_ACTIVE.load(std::sync::atomic::Ordering::Relaxed);
     if last > 0 && now.saturating_sub(last) <= CLAUDE_HOLD_MS {
-        vec![Activity { provider: "claude".into(), state: "busy".into(), name: "Claude".into(), detail: "Streaming (network)".into(), since: last }]
+        vec![Activity { provider: "claude".into(), state: "busy".into(), name: "Claude".into(), detail: "Streaming (network)".into(), since: last, pushed: false }]
     } else {
         vec![]
     }
@@ -622,7 +627,7 @@ fn antigravity_activity() -> Vec<Activity> {
     if now_ms().saturating_sub(at) > ANTIGRAVITY_STALE_MS {
         return vec![];
     }
-    vec![Activity { provider: "gemini".into(), state: "busy".into(), name: "Antigravity".into(), detail: "Working".into(), since: at }]
+    vec![Activity { provider: "gemini".into(), state: "busy".into(), name: "Antigravity".into(), detail: "Working".into(), since: at, pushed: false }]
 }
 
 // ---------------- Putting it together ----------------

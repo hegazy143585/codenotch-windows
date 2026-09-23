@@ -26,6 +26,11 @@ pub trait Provider: Sync {
     fn always_shown(&self) -> bool {
         false
     }
+    /// How this provider's working/waiting state is known when nothing has been pushed for it
+    fn activity(&self, hooks_installed: bool) -> ActivitySupport {
+        let _ = hooks_installed;
+        ActivitySupport::Inferred
+    }
     fn load_persisted(&self) -> UsageSnapshot;
     fn start(&self, app: AppHandle);
     fn request_refresh(&self);
@@ -42,6 +47,10 @@ impl Provider for Claude {
     fn glyph(&self) -> &'static str { "C" }
     fn page_url(&self) -> &'static str { "https://claude.ai/settings/usage" }
     fn always_shown(&self) -> bool { true }
+    /// Hooks report every state change; without them the transcript watcher and IO sampling guess
+    fn activity(&self, hooks_installed: bool) -> ActivitySupport {
+        if hooks_installed { ActivitySupport::Event } else { ActivitySupport::Inferred }
+    }
     fn load_persisted(&self) -> UsageSnapshot { crate::usage::load_persisted() }
     fn start(&self, app: AppHandle) {
         crate::usage::start(app.clone());
@@ -117,10 +126,24 @@ impl Slots {
     }
 }
 
+/// Where a provider's working / waiting state comes from (W-08). The card says which, so "idle"
+/// is never confused with "cannot tell".
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivitySupport {
+    /// The tool reports each change (Claude Code hooks, or `codenotch-hook --provider`)
+    Event,
+    /// Guessed from local files or process activity; can lag or miss a run
+    Inferred,
+    /// No way to see it on this platform
+    NotSupported,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Capabilities {
     /// Codenotch can read this provider's usage windows
     pub usage: bool,
+    pub activity: ActivitySupport,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -142,7 +165,7 @@ fn title_case(id: &str) -> String {
 
 /// The cells the notch shows, in order: registered providers that are installed (or always shown),
 /// then any provider that only reports activity through the event ingress.
-pub fn list(slots: &Slots, activity: &[Activity]) -> Vec<ProviderSnapshot> {
+pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool) -> Vec<ProviderSnapshot> {
     let mut out: Vec<ProviderSnapshot> = Vec::new();
     for p in REGISTRY {
         let usage = slots.read(p.id());
@@ -155,7 +178,11 @@ pub fn list(slots: &Slots, activity: &[Activity]) -> Vec<ProviderSnapshot> {
             id: p.id().into(),
             name: p.name().into(),
             glyph: p.glyph().into(),
-            capabilities: Capabilities { usage: true },
+            // A pushed row means the tool is wired to the hook right now: that beats any probe
+            capabilities: Capabilities {
+                usage: true,
+                activity: if pushed_by_event(activity, p.id()) { ActivitySupport::Event } else { p.activity(hooks_installed) },
+            },
             usage,
         });
     }
@@ -168,7 +195,7 @@ pub fn list(slots: &Slots, activity: &[Activity]) -> Vec<ProviderSnapshot> {
             id: a.provider.clone(),
             name: title_case(&a.provider),
             glyph: a.provider.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".into()),
-            capabilities: Capabilities { usage: false },
+            capabilities: Capabilities { usage: false, activity: ActivitySupport::Event },
             usage: UsageSnapshot { status: "none".into(), ..Default::default() },
         });
     }
@@ -178,7 +205,12 @@ pub fn list(slots: &Slots, activity: &[Activity]) -> Vec<ProviderSnapshot> {
 pub fn current(app: &AppHandle) -> Vec<ProviderSnapshot> {
     let st = app.state::<AppState>();
     let activity = st.activity.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    list(&st.usage, &activity)
+    list(&st.usage, &activity, crate::hooks_install::is_installed())
+}
+
+/// Rows that came through the event ingress (probe rows are tagged by `activity::is_pushed`)
+fn pushed_by_event(activity: &[Activity], id: &str) -> bool {
+    activity.iter().any(|a| a.provider == id && a.pushed)
 }
 
 /// Push the whole list to the page. Called whenever any provider's snapshot or the activity changes.
@@ -207,7 +239,11 @@ mod tests {
     }
 
     fn act(provider: &str) -> Activity {
-        Activity { provider: provider.into(), state: "busy".into(), name: String::new(), detail: String::new(), since: 0 }
+        Activity { provider: provider.into(), state: "busy".into(), name: String::new(), detail: String::new(), since: 0, pushed: true }
+    }
+
+    fn list3(slots: &Slots, activity: &[Activity]) -> Vec<ProviderSnapshot> {
+        list(slots, activity, false)
     }
 
     fn all(status: &str) -> Slots {
@@ -226,26 +262,26 @@ mod tests {
 
     #[test]
     fn claude_is_shown_even_when_absent_the_others_are_not() {
-        let ids: Vec<String> = list(&all("absent"), &[]).into_iter().map(|p| p.id).collect();
+        let ids: Vec<String> = list3(&all("absent"), &[]).into_iter().map(|p| p.id).collect();
         assert_eq!(ids, vec!["claude"]);
     }
 
     #[test]
     fn installed_providers_keep_registry_order() {
-        let ids: Vec<String> = list(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
+        let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
         assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
         let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent"))]);
-        let l = list(&slots, &[]);
+        let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }
 
     #[test]
     fn activity_only_providers_are_appended_once_without_usage() {
-        let l = list(&all("absent"), &[act("copilot"), act("copilot"), act("glm")]);
+        let l = list3(&all("absent"), &[act("copilot"), act("copilot"), act("glm")]);
         let ids: Vec<&str> = l.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids, vec!["claude", "copilot", "glm"]);
         let c = &l[1];
@@ -257,9 +293,41 @@ mod tests {
 
     #[test]
     fn a_registered_provider_that_pushed_activity_is_shown_under_its_own_name() {
-        let l = list(&all("absent"), &[act("codex")]);
+        let l = list3(&all("absent"), &[act("codex")]);
         assert_eq!(l.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), vec!["Claude", "Codex"]);
         assert!(l[1].capabilities.usage);
+    }
+
+    fn caps(l: &[ProviderSnapshot]) -> Vec<(String, ActivitySupport)> {
+        l.iter().map(|p| (p.id.clone(), p.capabilities.activity)).collect()
+    }
+
+    #[test]
+    fn claude_activity_is_event_only_with_hooks() {
+        let without = list(&all("ok"), &[], false);
+        let with = list(&all("ok"), &[], true);
+        assert_eq!(without[0].capabilities.activity, ActivitySupport::Inferred);
+        assert_eq!(with[0].capabilities.activity, ActivitySupport::Event);
+    }
+
+    #[test]
+    fn probed_providers_are_inferred_until_they_push() {
+        let probed = Activity { pushed: false, ..act("codex") };
+        let l = list(&all("ok"), &[probed], true);
+        assert_eq!(caps(&l)[1], ("codex".into(), ActivitySupport::Inferred));
+        let l = list(&all("ok"), &[act("codex")], true);
+        assert_eq!(caps(&l)[1], ("codex".into(), ActivitySupport::Event));
+    }
+
+    #[test]
+    fn activity_only_providers_are_event_driven() {
+        let l = list(&all("absent"), &[act("copilot")], false);
+        assert_eq!(caps(&l)[1], ("copilot".into(), ActivitySupport::Event));
+    }
+
+    #[test]
+    fn activity_support_serializes_snake_case() {
+        assert_eq!(serde_json::to_string(&ActivitySupport::NotSupported).unwrap(), "\"not_supported\"");
     }
 
     #[test]

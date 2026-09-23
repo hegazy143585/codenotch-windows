@@ -87,8 +87,15 @@ fn refresh_menu(app: &AppHandle) {
 
 fn handle(app: &AppHandle, id: &str) {
     match id {
-        "install" => notice(app, hooks_install::install()),
-        "uninstall" => notice(app, hooks_install::uninstall()),
+        // Claude's activity source flips between event and inferred with the hooks
+        "install" => {
+            notice(app, hooks_install::install());
+            crate::providers::publish(app);
+        }
+        "uninstall" => {
+            notice(app, hooks_install::uninstall());
+            crate::providers::publish(app);
+        }
         "reset" => crate::reset_bar(app),
         "open-data" => {
             let dir = crate::config::config_path().parent().map(|p| p.to_path_buf()).unwrap_or_default();

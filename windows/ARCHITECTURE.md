@@ -32,8 +32,9 @@ Gemini API, Perplexity). None of these have usage collection on Windows yet.
 
 ## Why live activity is inconsistent
 Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity are inferred from file
-changes, and the rest only show activity if the user wires up the hook manually. There is no per-provider
-"activity supported / inferred / not supported" flag, so the UI can't tell the user which case they're in.
+changes, and the rest only show activity if the user wires up the hook manually. Each provider now carries
+`capabilities.activity` (`event` / `inferred` / `not_supported`) and the card shows it, so the user can tell
+"idle" from "estimated" (W-08). Activity rows carry `pushed` so a real event is never labelled a guess.
 
 ## Adding a provider
 A provider with usage needs one module (`load_persisted` / `start` / `request_refresh`, writing its slot
