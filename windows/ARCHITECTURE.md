@@ -35,10 +35,10 @@ computed in Rust (`providers::freshness`); windows whose reset passed after the 
 | OpenCode Go | `opencode.ai/zen/go/v1/usage` with the `opencode-go` key from OpenCode's auth.json (`opencode.rs`) | Unofficial API | none unless pushed | — |
 | GitHub Copilot | `api.github.com/copilot_internal/user` with GH_TOKEN, hosts.yml or `gh auth token` (`copilot.rs`) | Internal API | none unless pushed | — |
 | Grok | `cli-chat-proxy.grok.com/v1/billing?format=credits` with the xAI session in `~/.grok/auth.json` (`grok.rs`) | Private CLI endpoint | none unless pushed | — |
+| Command Code | `api.commandcode.ai/alpha/{whoami,billing/credits,billing/subscriptions,usage/summary}` with COMMAND_CODE_API_KEY or `~/.commandcode/auth.json` (`commandcode.rs`) | Private desktop-app endpoints | none unless pushed | — |
 | Any other tool | none | — | `codenotch-hook --provider <id>` | Event (manual wiring) |
 
-The macOS app supports more providers (Command Code,
-Perplexity). Gemini API, Ollama (local runtime and cloud), GLM, OpenCode Go, GitHub Copilot and Grok are ported (W-07); the others are not yet.
+The macOS app supports more providers (Perplexity). Gemini API, Ollama (local runtime and cloud), GLM, OpenCode Go, GitHub Copilot, Grok and Command Code are ported (W-07); the others are not yet.
 
 ## Why live activity is inconsistent
 Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity are inferred from file
