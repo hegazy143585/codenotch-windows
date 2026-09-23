@@ -309,3 +309,36 @@ pub fn start(app: AppHandle) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(text: &str) -> serde_json::Value {
+        serde_json::from_str(text).unwrap()
+    }
+
+    #[test]
+    fn a_pro_summary_yields_included_api_and_on_demand() {
+        let (w, note) = parse_summary(&fixture(include_str!("../fixtures/cursor_usage_summary_pro.json")));
+        assert!(note.is_empty());
+        assert_eq!(w.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), vec!["included", "api", "on_demand"]);
+        assert!((w[0].used - 0.617).abs() < 1e-9);
+        assert!((w[2].used - 0.25).abs() < 1e-9, "5 of 20 on-demand");
+        assert!(w.iter().all(|x| x.resets_at == Some(1_790_812_800_000)));
+    }
+
+    #[test]
+    fn an_unlimited_plan_has_no_windows_and_says_why() {
+        let (w, note) = parse_summary(&fixture(include_str!("../fixtures/cursor_usage_summary_unlimited.json")));
+        assert!(w.is_empty());
+        assert_eq!(note, "Unlimited on the enterprise plan — nothing to meter");
+    }
+
+    #[test]
+    fn an_empty_reply_is_not_invented_into_a_reading() {
+        let (w, note) = parse_summary(&serde_json::json!({}));
+        assert!(w.is_empty());
+        assert!(note.contains("nothing for Cursor to meter"));
+    }
+}

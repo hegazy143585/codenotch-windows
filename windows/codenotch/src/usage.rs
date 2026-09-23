@@ -493,3 +493,64 @@ pub fn start(app: AppHandle) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture(name: &str) -> serde_json::Value {
+        let text = match name {
+            "current" => include_str!("../fixtures/claude_oauth_usage.json"),
+            _ => include_str!("../fixtures/claude_oauth_usage_legacy.json"),
+        };
+        serde_json::from_str(text).unwrap()
+    }
+
+    #[test]
+    fn limits_are_parsed_session_first_and_the_fallback_does_not_duplicate() {
+        let w = parse_response(&fixture("current"));
+        let ids: Vec<&str> = w.iter().map(|x| x.id.as_str()).collect();
+        // no_reset has no reset time and is dropped; five_hour/seven_day duplicate session/weekly_all
+        assert_eq!(ids, vec!["session", "weekly_all", "weekly_opus"]);
+        assert_eq!(w[0].label, "Current session");
+        assert_eq!(w[1].label, "Weekly (all models)");
+        assert!((w[0].used - 0.42).abs() < 1e-9);
+        assert!((w[1].used - 0.175).abs() < 1e-9);
+        assert_eq!(w[0].resets_at, Some(1_790_193_600_000));
+    }
+
+    #[test]
+    fn the_legacy_shape_alone_still_yields_windows_and_clamps() {
+        let w = parse_response(&fixture("legacy"));
+        assert_eq!(w.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), vec!["session", "seven_day"]);
+        assert_eq!(w[0].used, 1.0, "130 % is clamped");
+        assert!((w[1].used - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn an_empty_or_foreign_reply_yields_nothing() {
+        assert!(parse_response(&serde_json::json!({})).is_empty());
+        assert!(parse_response(&serde_json::json!({"limits": "nope"})).is_empty());
+    }
+
+    #[test]
+    fn unknown_kinds_get_a_readable_label() {
+        assert_eq!(label_for("monthly_extra"), "Monthly extra");
+    }
+
+    #[test]
+    fn the_token_fingerprint_never_contains_the_token() {
+        let sig = token_sig("sk-ant-oat01-secret");
+        assert_eq!(sig.len(), 16);
+        assert!(!sig.contains("secret"));
+        assert_ne!(sig, token_sig("sk-ant-oat01-other"));
+    }
+
+    #[test]
+    fn backoff_doubles_and_caps_and_respects_retry_after() {
+        assert_eq!(backoff_secs(0, 0), 60);
+        assert_eq!(backoff_secs(1, 0), 120);
+        assert_eq!(backoff_secs(9, 0), 900);
+        assert_eq!(backoff_secs(0, 3600), 3600);
+    }
+}

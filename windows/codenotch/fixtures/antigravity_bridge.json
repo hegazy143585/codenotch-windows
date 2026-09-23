@@ -1,0 +1,34 @@
+{
+  "response": {
+    "groups": [
+      {
+        "displayName": "Gemini Pro",
+        "buckets": [
+          {
+            "bucketId": "gemini-pro-daily",
+            "remainingFraction": 0.25,
+            "resetTime": "2026-09-24T00:00:00Z"
+          }
+        ]
+      },
+      {
+        "displayName": "Claude",
+        "buckets": [
+          {
+            "bucketId": "claude-sonnet",
+            "displayName": "Sonnet",
+            "remainingFraction": 1.0,
+            "resetTime": "2026-09-24T00:00:00Z"
+          },
+          {
+            "bucketId": "broken",
+            "remainingFraction": 1.7
+          },
+          {
+            "bucketId": "missing"
+          }
+        ]
+      }
+    ]
+  }
+}

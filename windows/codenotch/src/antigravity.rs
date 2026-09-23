@@ -622,3 +622,25 @@ pub fn probe() -> String {
         }
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bridge_buckets_are_flipped_from_remaining_to_used() {
+        let v: serde_json::Value = serde_json::from_str(include_str!("../fixtures/antigravity_bridge.json")).unwrap();
+        let w = windows_from_bridge(&v);
+        // out-of-range and missing fractions are skipped, never guessed
+        assert_eq!(w.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), vec!["gemini-pro-daily", "claude-sonnet"]);
+        assert!((w[0].used - 0.75).abs() < 1e-9);
+        assert_eq!(w[0].label, "Gemini Pro");
+        assert_eq!(w[1].used, 0.0);
+        assert_eq!(w[1].resets_at, Some(1_790_208_000_000));
+    }
+
+    #[test]
+    fn a_bridge_reply_without_groups_yields_nothing() {
+        assert!(windows_from_bridge(&serde_json::json!({"response": {}})).is_empty());
+    }
+}

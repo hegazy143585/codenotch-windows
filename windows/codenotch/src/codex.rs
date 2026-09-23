@@ -543,3 +543,47 @@ pub fn probe() -> String {
         age
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_recorded_rollout_yields_the_weekly_window_and_plan() {
+        // Recorded on Windows (token counts zeroed): a free plan reports one 7-day primary window
+        let text = include_str!("../fixtures/codex_rollout_free_weekly.jsonl");
+        let (w, recorded, plan) = snapshot_from_rollout(text).expect("snapshot");
+        assert_eq!(w.len(), 1);
+        assert_eq!(w[0].id, "primary");
+        assert_eq!(w[0].label, "Weekly limit");
+        assert!((w[0].used - 0.54).abs() < 1e-9);
+        assert_eq!(w[0].resets_at, Some(1_777_108_919_000));
+        assert_eq!(recorded, Some(1_776_507_969_287));
+        assert_eq!(plan.as_deref(), Some("free"));
+    }
+
+    #[test]
+    fn a_rollout_without_rate_limits_yields_nothing() {
+        assert!(snapshot_from_rollout("{\"type\":\"response_item\"}\nnot json\n").is_none());
+    }
+
+    #[test]
+    fn the_usage_reply_yields_both_windows_and_ignores_code_review() {
+        let v: serde_json::Value = serde_json::from_str(include_str!("../fixtures/codex_wham_usage.json")).unwrap();
+        let w = windows_from_usage(&v);
+        assert_eq!(w.iter().map(|x| x.label.as_str()).collect::<Vec<_>>(), vec!["5h limit", "Weekly limit"]);
+        assert!((w[0].used - 0.12).abs() < 1e-9);
+        assert_eq!(w[0].resets_at, Some(1_790_000_000_000), "reset_at wins over reset_after_seconds");
+        assert!((w[1].used - 0.40).abs() < 1e-9);
+    }
+
+    #[test]
+    fn window_labels_follow_the_length() {
+        assert_eq!(label_for(Some(30.0), "primary"), "30m limit");
+        assert_eq!(label_for(Some(300.0), "primary"), "5h limit");
+        assert_eq!(label_for(Some(43200.0), "primary"), "Monthly limit");
+        assert_eq!(label_for(Some(4320.0), "secondary"), "3d limit");
+        assert_eq!(label_for(None, "primary"), "Current session");
+        assert_eq!(label_for(None, "secondary"), "Longer window");
+    }
+}
