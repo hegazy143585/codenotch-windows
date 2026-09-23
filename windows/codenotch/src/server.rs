@@ -4,15 +4,71 @@
 use crate::state::HookEvent;
 use crate::AppState;
 use std::io::Read;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
+
+/// Why the event server is not listening, if it is not (W-20). The page shows it as a banner that
+/// stays up until the port is ours; without it a second copy silently loses every Claude event.
+static BIND_ALERT: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+const BIND_RETRY_SECS: u64 = 30;
+
+pub fn bind_alert() -> Option<String> {
+    BIND_ALERT.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+fn set_bind_alert(app: &AppHandle, msg: Option<String>) {
+    let changed = {
+        let mut a = BIND_ALERT.lock().unwrap_or_else(|e| e.into_inner());
+        let changed = *a != msg;
+        *a = msg.clone();
+        changed
+    };
+    if changed {
+        let _ = app.emit("alert", msg);
+    }
+}
+
+pub(crate) fn bind_failure_message(port: u16, holder_is_codenotch: bool) -> String {
+    if holder_is_codenotch {
+        "Another Codenotch is running — close it (tray → Quit) so this one can show Claude activity".into()
+    } else {
+        format!("Port {port} is used by another program — Claude activity is off until it is free (or change \"port\" in config.json)")
+    }
+}
+
+/// Does the program holding the port answer like a Codenotch? Its `GET /activity` returns a JSON array.
+fn holder_is_codenotch(port: u16) -> bool {
+    ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .get(&format!("http://127.0.0.1:{port}/activity"))
+        .call()
+        .ok()
+        .and_then(|r| r.into_string().ok())
+        .map(|b| looks_like_activity(&b))
+        .unwrap_or(false)
+}
+
+pub(crate) fn looks_like_activity(body: &str) -> bool {
+    matches!(serde_json::from_str::<serde_json::Value>(body), Ok(serde_json::Value::Array(_)))
+}
 
 pub fn start(app: AppHandle, port: u16) {
     std::thread::spawn(move || {
-        let server = match tiny_http::Server::http(("127.0.0.1", port)) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("[codenotch] failed to bind port {port}: {e} (is another instance running?)");
-                return;
+        // Keep trying: the other copy may be quit from its tray, and then this one takes over
+        let server = loop {
+            match tiny_http::Server::http(("127.0.0.1", port)) {
+                Ok(s) => {
+                    set_bind_alert(&app, None);
+                    break s;
+                }
+                Err(e) => {
+                    let msg = bind_failure_message(port, holder_is_codenotch(port));
+                    if bind_alert().as_deref() != Some(msg.as_str()) {
+                        crate::applog(&format!("event server: failed to bind 127.0.0.1:{port}: {e} — {msg}"));
+                    }
+                    set_bind_alert(&app, Some(msg));
+                    std::thread::sleep(std::time::Duration::from_secs(BIND_RETRY_SECS));
+                }
             }
         };
         for mut req in server.incoming_requests() {
@@ -187,6 +243,22 @@ mod tests {
     fn dns_rebinding_host_is_refused() {
         assert!(!request_allowed(Some("evil.example:48666"), None, 48666));
         assert!(!request_allowed(Some("127.0.0.1:1234"), None, 48666));
+    }
+
+    #[test]
+    fn a_port_held_by_another_codenotch_says_so() {
+        assert!(bind_failure_message(48666, true).starts_with("Another Codenotch is running"));
+        let m = bind_failure_message(48666, false);
+        assert!(m.contains("48666") && m.contains("another program"));
+    }
+
+    #[test]
+    fn only_a_json_array_counts_as_a_codenotch_reply() {
+        assert!(looks_like_activity("[]"));
+        assert!(looks_like_activity(r#"[{"provider":"codex"}]"#));
+        assert!(!looks_like_activity("<html>"));
+        assert!(!looks_like_activity(r#"{"ok":true}"#));
+        assert!(!looks_like_activity(""));
     }
 
     #[test]

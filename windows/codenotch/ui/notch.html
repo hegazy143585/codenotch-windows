@@ -101,6 +101,12 @@
     background:rgba(0,0,0,.85);border-radius:8px;padding:4px 8px;display:none
   }
   #notice.show{display:block}
+  /* Sticky alert (W-20): shown in the pill's column so it is visible even while the card is closed */
+  #alert{
+    position:absolute;right:4px;top:6px;width:200px;font-size:11px;line-height:1.35;color:#1a1a1a;
+    background:#FFBF00;border-radius:8px;padding:6px 8px;display:none;pointer-events:none
+  }
+  #alert.show{display:block}
 </style>
 </head>
 <body>
@@ -108,6 +114,7 @@
   <div id="card"></div>
   <div id="pill"></div><!-- one .cell per provider, stacked vertically (upstream: data-driven, the same layout for 1–5 cells) -->
   <div id="notice"></div>
+  <div id="alert"></div>
 </div>
 <script>
 const invoke = window.__TAURI__.core.invoke;
@@ -434,6 +441,9 @@ listen('usage',e=>{usage=e.payload||usage;renderRing();if(card.classList.contain
 listen('state',e=>{stateSnap=e.payload||stateSnap;renderRing();if(card.classList.contains('show'))renderCard();})
   .catch(e=>notice('listen(state) failed: '+e));
 listen('notice',e=>notice(e.payload)).catch(()=>{});
+function showAlert(msg){ const a=document.getElementById('alert'); a.textContent=msg||''; a.classList.toggle('show',!!msg); }
+listen('alert',e=>showAlert(e.payload)).catch(()=>{});
+invoke('get_alert').then(showAlert).catch(()=>{});
 listen('codex',e=>{codexSnap=e.payload||codexSnap;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
 listen('cursor',e=>{cursorSnap=e.payload||cursorSnap;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
 invoke('get_cursor').then(u=>{cursorSnap=u||cursorSnap;renderRing();}).catch(()=>{});

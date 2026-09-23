@@ -253,6 +253,12 @@ fn get_prefs(state: tauri::State<AppState>) -> serde_json::Value {
     serde_json::json!({ "hover_only": c.hover_only })
 }
 
+/// A condition the user must act on (W-20: the event port is taken), or None
+#[tauri::command]
+fn get_alert() -> Option<String> {
+    server::bind_alert()
+}
+
 #[tauri::command]
 fn get_usage(state: tauri::State<AppState>) -> usage::UsageSnapshot {
     state.usage.lock().unwrap().clone()
@@ -678,6 +684,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_state,
             get_prefs,
+            get_alert,
             get_usage,
             get_codex,
             get_cursor,
