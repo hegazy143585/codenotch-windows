@@ -32,8 +32,7 @@ jobs:
       - name: Dependency audit
         run: |
           cargo install cargo-audit --locked
-          cargo audit
-        continue-on-error: true # report-only until the current findings are triaged (see windows/TASKS.md)
+          cargo audit # blocking; accepted warnings and their reasons are in windows/.cargo/audit.toml
 
       - name: Build hook binary
         run: cargo build --release --locked -p codenotch-hook

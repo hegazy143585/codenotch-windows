@@ -1,0 +1,13 @@
+# cargo audit policy (W-17). CI runs `cargo audit` as a blocking step: any vulnerability fails the build.
+# The advisories below are warnings (unmaintained / unsound), reviewed and accepted with the reason given.
+# Re-check them whenever Tauri is upgraded, and delete an entry as soon as it no longer appears.
+[advisories]
+ignore = [
+  "RUSTSEC-2024-0370", # proc-macro-error unmaintained: build-time proc macro pulled in by Tauri's build chain; no runtime code
+  "RUSTSEC-2025-0081", # unic-char-property unmaintained: via urlpattern (Tauri ACL URL matching); read-only tables, no fix upstream yet
+  "RUSTSEC-2025-0075", # unic-char-range unmaintained: same chain as above
+  "RUSTSEC-2025-0080", # unic-common unmaintained: same chain as above
+  "RUSTSEC-2025-0100", # unic-ucd-ident unmaintained: same chain as above
+  "RUSTSEC-2025-0098", # unic-ucd-version unmaintained: same chain as above
+  "RUSTSEC-2024-0429", # glib VariantStrIter unsound: Linux GTK backend only, not compiled for Windows (cargo tree -i glib --target x86_64-pc-windows-msvc is empty)
+]
