@@ -93,3 +93,8 @@ originated in [Im-Midi/Pac-Man](https://github.com/Im-Midi/Pac-Man) (MIT).
 ## License
 
 MIT — see `LICENSE`. The Codenotch design and name belong to the upstream author.
+
+## Installer
+
+`scripts\build-installer.ps1` builds a per-user NSIS installer that includes `codenotch-hook.exe`.
+CI builds the same installer on every push — see `RELEASE.md`.

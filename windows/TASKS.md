@@ -1,0 +1,31 @@
+# Codenotch for Windows — issue tracker
+
+Status: FIXED = changed in this repo and unit-tested on Linux; needs a Windows run to confirm where noted.
+
+| ID | Pri | Area | Problem | Evidence | Fix | Test | Status |
+|---|---|---|---|---|---|---|---|
+| W-01 | P0 | Install | An installer built from `tauri.conf.json` ships without `codenotch-hook.exe`. "Install Claude Code hooks" then fails with "missing codenotch-hook.exe", so Claude's working/waiting state never appears. | `hooks_install.rs:66-73`, no `externalBin` in `tauri.conf.json` | Hook shipped as Tauri sidecar via `tauri.release.conf.json`; CI + `scripts/build-installer.ps1` stage it | Install on Windows, run tray → Install hooks | FIXED — confirm on Windows |
+| W-02 | P0 | CI | No CI runs in this repo: both workflows only run for `vinzdg/codenotch`. Windows code is never built or tested. | `.github/workflows/*.yml` `if: github.repository == 'vinzdg/codenotch'` | New `.github/workflows/windows.yml`: tests, installer artifact, tag release, secret scan | First run on GitHub | FIXED — confirm first run |
+| W-03 | P0 | Security | Local event server accepted requests from any web page (no Origin/Host check). Any site could fake Working/Waiting states or add fake provider cells; a DNS-rebinding page could read `/activity`, which includes session names and prompt text. | `server.rs` (no header checks) | Refuse any `Origin` header and non-loopback `Host`; validate provider ids (`[a-z0-9_-]{1,32}`) | 4 unit tests in `server.rs` | FIXED |
+| W-04 | P1 | Security | UI inserted provider id/name, notes, and labels into `innerHTML` unescaped, with CSP disabled and global Tauri API on. | `notch.html` render functions, `tauri.conf.json` `csp: null` | All dynamic text through `esc()` | JS syntax check only | FIXED (escaping). CSP still open → W-18 |
+| W-05 | P1 | Reliability | Pushed activity rows unbounded (30 min TTL each). | `activity.rs` `PUSHED` map | Cap at 64 rows; expired rows evicted first | None (shared global makes a safe test awkward) | FIXED |
+| W-06 | P1 | Architecture | Provider list hardcoded in Rust state, commands, and UI; adding a provider touches 4+ places. | `main.rs` `AppState`, `get_codex/get_cursor/...`, `notch.html` `providers()` | One `Provider` trait + `Vec<ProviderSnapshot>` with capabilities; UI renders the list | Per-adapter fixture tests | OPEN |
+| W-07 | P1 | Providers | Windows has usage for 4 providers; macOS has ~12 (GLM, Ollama, Grok, OpenCode, Command Code, Copilot, Gemini API, Perplexity…). | `Sources/Providers` vs `windows/codenotch/src` | Port after W-06, one adapter per session | Fixture tests | OPEN |
+| W-08 | P1 | Activity | No per-provider activity capability. Users can't tell "idle" from "can't detect". | `activity.rs` | Add `activity: event / inferred / not_supported` to the model; show it in the card | Unit | OPEN |
+| W-09 | P1 | Install | v0.3.0 shipped as a zip with a bare, unsigned exe: no Start Menu, no uninstall, SmartScreen warning. | Download page | NSIS pipeline added (W-01/W-02). Code signing still needed. | — | PARTIAL |
+| W-10 | P1 | Updates | No auto-update on Windows. | No updater plugin | `tauri-plugin-updater` with signed manifest on GitHub Releases | Update check test | OPEN |
+| W-11 | P1 | UX | No onboarding or settings window on Windows; config is tray menu + `config.json`. | `tray.rs`, `config.rs` | Settings window + first-run flow (see Session 6 prompt) | — | OPEN |
+| W-12 | P1 | Freshness | Staleness judged in the UI with fixed windows (5 / 35 min); no offline vs error vs stale distinction; no sleep/wake refresh. | `notch.html` `freshWindow`, `staleOf` | Compute freshness in Rust per provider; refresh on resume | Unit | OPEN |
+| W-13 | P2 | i18n | Card strings ("Resets in", "Usage", "Sign in to…") hardcoded English in `notch.html`; only the tray uses `i18n.rs`. | `notch.html` | Move to the page dictionary | — | OPEN |
+| W-14 | P2 | Tests | No tests for usage parsing in `usage.rs`, `codex.rs`, `cursor.rs`, `antigravity.rs`. | `grep '#[test]'` | Recorded, sanitized fixtures per provider | — | OPEN |
+| W-15 | P2 | Identity | Package metadata points to `Im-Midi/codenotch-windows`, identifier `com.immidi.codenotch`. | `Cargo.toml`, `tauri.conf.json` | Decide: keep (compatible with existing installs) or rebrand | — | DECISION |
+| W-16 | P2 | Repo | 9 MB `site/Codenotch.dmg` committed to the repo. | `site/` | Move binaries to GitHub Releases | — | OPEN |
+| W-17 | P2 | CI | `cargo audit` runs report-only. | `windows.yml` | Triage findings, then make it blocking | — | OPEN |
+| W-18 | P3 | Security | `csp: null` in `tauri.conf.json`. | `tauri.conf.json` | Set a CSP (inline script/style + `data:` images); verify on Windows | Manual | OPEN |
+| W-19 | P1 | iOS | No iOS code exists. | — | Needs decision: local-only sync vs relay (push/Live Activities need a relay) | — | DECISION |
+
+## Good as-is
+- Loopback-only listener; Antigravity's self-signed TLS exception is pinned to `127.0.0.1`.
+- Cursor's 2 GB `state.vscdb` is read through an mtime-gated cached connection.
+- Claude API 429 back-off with a persisted deadline.
+- No secrets found in the repo (pattern scan).

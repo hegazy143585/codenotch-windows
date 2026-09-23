@@ -1,0 +1,3 @@
+# Filled by CI (and scripts/build-installer.ps1) right before `cargo tauri build`.
+*
+!.gitignore

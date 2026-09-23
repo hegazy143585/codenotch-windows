@@ -141,8 +141,8 @@ function workState(id){
 function glyphHtml(p,small){
   const g=glyphs[p.id];
   if(g&&g.kind==='svg'&&g.svg) return `<span class="mark">${g.svg}</span>`;
-  if(g&&g.url) return `<img class="${g.kind}" src="${g.url}" alt="${p.name}"${small?' style="width:16px;height:16px;border-radius:4px"':''}>`;
-  return small?'':p.glyph; // fallback letter
+  if(g&&g.url) return `<img class="${g.kind}" src="${g.url}" alt="${esc(p.name)}"${small?' style="width:16px;height:16px;border-radius:4px"':''}>`;
+  return small?'':esc(p.glyph); // fallback letter
 }
 // Provider table (order = top to bottom in the pill). `glyph` is the fallback letter used when no mark is available
 function providers(){
@@ -192,7 +192,7 @@ function renderRing(){
   // Rebuild the DOM only when the structure changes (never swap the element under the cursor)
   const want=ps.map(p=>p.id+':'+(glyphs[p.id]?glyphs[p.id].kind:'-')).join(',');
   if(pill.dataset.cells!==want){
-    pill.innerHTML=ps.map(p=>`<div class="cell" data-p="${p.id}">
+    pill.innerHTML=ps.map(p=>`<div class="cell" data-p="${esc(p.id)}">
       <div class="ringwrap"><svg class="ring" viewBox="0 0 56 56"></svg><div class="glyph ${(!glyphs[p.id]&&p.glyph.length>1)?'small':''}">${glyphHtml(p)}</div></div>
       <div class="pct">—</div></div>`).join('');
     pill.dataset.cells=want;
@@ -243,27 +243,27 @@ function renderCard(){
   const p=providers().find(x=>x.id===hoverId)||providers()[0];
   const snap=p.snap;
   const headIcon=glyphHtml(p,true);
-  let html=`<div class="c-head">${headIcon}<span class="c-title">${p.name} Usage</span></div>`;
+  let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(p.name)} Usage</span></div>`;
   if(staleOf(snap)&&snap.fetched_at) html+=`<div class="c-sub">Updated ${ago(snap.fetched_at)}</div>`;
   if(snap.status==='needsAuth'){
     const who={claude:'Sign in to Claude Code to see usage.',cursor:'Sign in to Cursor to see usage.',codex:'Sign in to Codex to see usage.',gemini:'Sign in to Antigravity to see usage.'}[p.id]||'';
-    html+=`<div class="c-note">${who}<br>${snap.note||''}</div>`;
+    html+=`<div class="c-note">${who}<br>${esc(snap.note)}</div>`;
   }else if(!snap.windows.length){
-    html+=`<div class="c-note">${snap.note||'Waiting for first reading…'}</div>`;
+    html+=`<div class="c-note">${esc(snap.note||'Waiting for first reading…')}</div>`;
   }else{
     for(const w of snap.windows){
       if(w.count!=null){
-        html+=`<div class="win"><div class="w-row"><span class="w-label">${w.label}</span></div>
+        html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(w.label)}</span></div>
           <div class="w-used">${w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today'}</div></div>`;
         continue;
       }
       html+=`<div class="win">
-        <div class="w-row"><span class="w-label">${w.label}</span><span class="w-reset">${resetCopy(w.resets_at)}</span></div>
+        <div class="w-row"><span class="w-label">${esc(w.label)}</span><span class="w-reset">${resetCopy(w.resets_at)}</span></div>
         <div class="w-track"><div class="w-fill" style="width:${(Math.min(w.used,1)*100).toFixed(0)}%;background:${tone(w.used)}"></div></div>
         <div class="w-used">${w.derived?'~':''}${Math.round(w.used*100)}% Used</div>
       </div>`;
     }
-    if(snap.note) html+=`<div class="c-note">${snap.note}</div>`;
+    if(snap.note) html+=`<div class="c-note">${esc(snap.note)}</div>`;
   }
   if(p.id==='claude'){ // live sessions (a full list with jump-to-session is a follow-up)
     const act=stateSnap.sessions.filter(s=>s.state!=='idle');

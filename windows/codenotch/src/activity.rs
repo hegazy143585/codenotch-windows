@@ -76,6 +76,9 @@ struct Pushed {
 /// key = "<provider>\0<session>" so several concurrent runs of one provider coexist as separate rows
 static PUSHED: LazyLock<Mutex<HashMap<String, Pushed>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Upper bound on concurrently pushed activity rows (all providers, all sessions).
+const MAX_PUSHED: usize = 64;
+
 fn default_name(provider: &str) -> String {
     let mut c = provider.chars();
     match c.next() {
@@ -101,6 +104,14 @@ pub fn push(provider: &str, session: &str, state: &str, name: &str, detail: &str
     let mut map = PUSHED.lock().unwrap();
     match mapped {
         Some(st) => {
+            // Bounded: a misbehaving integration (or anything else on the machine) must not grow this
+            // without limit. Expired rows go first; if still full, a new key is dropped.
+            if !map.contains_key(&key) && map.len() >= MAX_PUSHED {
+                map.retain(|_, p| p.expires > now);
+                if map.len() >= MAX_PUSHED {
+                    return;
+                }
+            }
             // Keep the original start time while a run stays busy; reset it when the state flips, so
             // "since" is the age of the *current* phase (the card's elapsed timer relies on it).
             let since = match map.get(&key) {
