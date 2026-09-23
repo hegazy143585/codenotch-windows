@@ -218,14 +218,6 @@ pub fn sources(p: &Paths, now: u64) -> Vec<(&'static str, TokenUsage)> {
     .collect()
 }
 
-pub fn compact(n: i64) -> String {
-    match n {
-        n if n >= 1_000_000 => format!("{:.1}M", n as f64 / 1e6),
-        n if n >= 1_000 => format!("{:.1}k", n as f64 / 1e3),
-        n => n.to_string(),
-    }
-}
-
 /// The whole visible surface, pure so it can be tested without a disk
 pub fn snapshot(sources: &[(&str, TokenUsage)], now: u64) -> UsageSnapshot {
     if sources.is_empty() {
@@ -390,10 +382,4 @@ mod tests {
         assert!(s.note.starts_with("13 calls"));
     }
 
-    #[test]
-    fn compact_numbers() {
-        assert_eq!(compact(999), "999");
-        assert_eq!(compact(12_300), "12.3k");
-        assert_eq!(compact(1_500_010), "1.5M");
-    }
 }

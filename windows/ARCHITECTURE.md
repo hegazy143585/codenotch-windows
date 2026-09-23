@@ -30,10 +30,11 @@ computed in Rust (`providers::freshness`); windows whose reset passed after the 
 | Antigravity | Local language-server bridge → Cloud Code API → turn count | Local unofficial + unofficial API | Recent writes | Inferred |
 | Gemini API | Token counts from Gemini CLI chats, OpenCode and Hermes SQLite logs (`gemini_api.rs`); no network, key never read | Local files | none (`not_supported`) unless pushed | — |
 | Ollama (local) | `GET /api/ps` on the loopback Ollama server (`ollama_local.rs`); loaded models, no quota (`capabilities.usage = false`) | Official local API | none (`not_supported`) unless pushed | — |
+| GLM (Z.ai) | `<console>/api/monitor/usage/quota/limit` with the plan key from Claude Code settings (Z.ai base URL only), ZCode or OpenCode (`glm.rs`) | Unofficial API | none unless pushed | — |
 | Any other tool | none | — | `codenotch-hook --provider <id>` | Event (manual wiring) |
 
-The macOS app supports more providers (GLM, Ollama cloud, Grok, OpenCode, Command Code, GitHub Copilot,
-Perplexity). Gemini API and Ollama (local runtime) are ported (W-07); the others are not yet.
+The macOS app supports more providers (Ollama cloud, Grok, OpenCode, Command Code, GitHub Copilot,
+Perplexity). Gemini API, Ollama (local runtime) and GLM are ported (W-07); the others are not yet.
 
 ## Why live activity is inconsistent
 Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity are inferred from file
@@ -42,6 +43,8 @@ changes, and the rest only show activity if the user wires up the hook manually.
 "idle" from "estimated" (W-08). Activity rows carry `pushed` so a real event is never labelled a guess.
 
 ## Adding a provider
+HTTP adapters with a borrowed credential use `remote.rs` (poll loop, persisted 429 backoff, offline/stale
+rules) and supply only `fetch`; they register as a `providers::Simple` entry.
 A provider with usage needs one module (`load_persisted` / `start` / `request_refresh`, writing its slot
 and calling `providers::publish`), one `Provider` impl in `providers.rs`, and one line in `REGISTRY`.
 No UI change. A provider with activity only needs no code: it pushes events through the hook.

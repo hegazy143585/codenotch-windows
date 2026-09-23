@@ -49,8 +49,6 @@ struct Claude;
 struct Codex;
 struct Cursor;
 struct Antigravity;
-struct GeminiApi;
-struct OllamaLocal;
 
 impl Provider for Claude {
     fn id(&self) -> &'static str { "claude" }
@@ -106,38 +104,59 @@ impl Provider for Antigravity {
     fn request_refresh(&self) { crate::antigravity::request_refresh() }
 }
 
-/// Tokens counted from Gemini CLI / OpenCode / Hermes logs; no network, no key (see gemini_api.rs)
-impl Provider for GeminiApi {
-    fn id(&self) -> &'static str { crate::gemini_api::ID }
-    fn name(&self) -> &'static str { "Gemini API" }
-    fn glyph(&self) -> &'static str { "G" }
-    fn page_url(&self) -> &'static str { "https://aistudio.google.com/usage" }
-    /// None of the three tools reports working state; only a pushed event would
-    fn activity(&self, _hooks_installed: bool) -> ActivitySupport { ActivitySupport::NotSupported }
-    fn load_persisted(&self) -> UsageSnapshot { crate::gemini_api::load_persisted() }
-    fn start(&self, app: AppHandle) { crate::gemini_api::start(app) }
-    fn request_refresh(&self) { crate::gemini_api::request_refresh() }
+/// A provider described by data: the adapters ported in W-07 need nothing more than this
+pub struct Simple {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub glyph: &'static str,
+    pub page_url: &'static str,
+    pub has_usage: bool,
+    pub activity: ActivitySupport,
+    pub load: fn() -> UsageSnapshot,
+    pub start: fn(AppHandle),
+    pub refresh: fn(),
 }
 
-/// The local Ollama server's loaded models (`/api/ps`, loopback only); no quota (see ollama_local.rs)
-impl Provider for OllamaLocal {
-    fn id(&self) -> &'static str { crate::ollama_local::ID }
-    fn name(&self) -> &'static str { "Ollama" }
-    fn glyph(&self) -> &'static str { "Ol" }
-    fn page_url(&self) -> &'static str { "https://ollama.com/settings" }
-    fn has_usage(&self) -> bool { false }
-    /// A loaded model is not a running request; only a pushed event says it is working
-    fn activity(&self, _hooks_installed: bool) -> ActivitySupport { ActivitySupport::NotSupported }
-    fn load_persisted(&self) -> UsageSnapshot { crate::ollama_local::load_persisted() }
-    fn start(&self, app: AppHandle) { crate::ollama_local::start(app) }
-    fn request_refresh(&self) { crate::ollama_local::request_refresh() }
+impl Provider for Simple {
+    fn id(&self) -> &'static str { self.id }
+    fn name(&self) -> &'static str { self.name }
+    fn glyph(&self) -> &'static str { self.glyph }
+    fn page_url(&self) -> &'static str { self.page_url }
+    fn has_usage(&self) -> bool { self.has_usage }
+    fn activity(&self, _hooks_installed: bool) -> ActivitySupport { self.activity }
+    fn load_persisted(&self) -> UsageSnapshot { (self.load)() }
+    fn start(&self, app: AppHandle) { (self.start)(app) }
+    fn request_refresh(&self) { (self.refresh)() }
 }
+
+/// Tokens counted from Gemini CLI / OpenCode / Hermes logs; no network, no key (gemini_api.rs).
+/// None of the three tools reports working state.
+static GEMINI_API: Simple = Simple {
+    id: crate::gemini_api::ID, name: "Gemini API", glyph: "G", page_url: "https://aistudio.google.com/usage",
+    has_usage: true, activity: ActivitySupport::NotSupported,
+    load: crate::gemini_api::load_persisted, start: crate::gemini_api::start, refresh: crate::gemini_api::request_refresh,
+};
+
+/// The local Ollama server's loaded models (`/api/ps`, loopback only); no quota (ollama_local.rs).
+/// A loaded model is not a running request.
+static OLLAMA_LOCAL: Simple = Simple {
+    id: crate::ollama_local::ID, name: "Ollama", glyph: "Ol", page_url: "https://ollama.com/settings",
+    has_usage: false, activity: ActivitySupport::NotSupported,
+    load: crate::ollama_local::load_persisted, start: crate::ollama_local::start, refresh: crate::ollama_local::request_refresh,
+};
+
+/// Z.ai GLM Coding Plan monitor with a key another tool holds (glm.rs). Unofficial endpoint.
+static GLM: Simple = Simple {
+    id: crate::glm::ID, name: "GLM", glyph: "Z", page_url: "https://z.ai/manage-apikey/subscription",
+    has_usage: true, activity: ActivitySupport::NotSupported,
+    load: crate::glm::load_persisted, start: crate::glm::start, refresh: crate::glm::request_refresh,
+};
 
 /// The API pollers read every 5 min while idle; two missed polls plus slack
 const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
-pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GeminiApi, &OllamaLocal];
+pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &GLM];
 
 pub fn find(id: &str) -> Option<&'static dyn Provider> {
     REGISTRY.iter().copied().find(|p| p.id() == id)
@@ -465,24 +484,24 @@ mod tests {
     #[test]
     fn installed_providers_keep_registry_order() {
         let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "glm"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
-        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent"))]);
+        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("glm", snap("absent"))]);
         let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }
 
     #[test]
     fn activity_only_providers_are_appended_once_without_usage() {
-        let l = list3(&all("absent"), &[act("copilot"), act("copilot"), act("glm")]);
+        let l = list3(&all("absent"), &[act("kilo"), act("kilo"), act("t_other")]);
         let ids: Vec<&str> = l.iter().map(|p| p.id.as_str()).collect();
-        assert_eq!(ids, vec!["claude", "copilot", "glm"]);
+        assert_eq!(ids, vec!["claude", "kilo", "t_other"]);
         let c = &l[1];
-        assert_eq!(c.name, "Copilot");
-        assert_eq!(c.glyph, "C");
+        assert_eq!(c.name, "Kilo");
+        assert_eq!(c.glyph, "K");
         assert!(!c.capabilities.usage);
         assert_eq!(c.usage.status, "none");
     }
@@ -517,8 +536,8 @@ mod tests {
 
     #[test]
     fn activity_only_providers_are_event_driven() {
-        let l = list(&all("absent"), &[act("copilot")], false, NOW);
-        assert_eq!(caps(&l)[1], ("copilot".into(), ActivitySupport::Event));
+        let l = list(&all("absent"), &[act("kilo")], false, NOW);
+        assert_eq!(caps(&l)[1], ("kilo".into(), ActivitySupport::Event));
     }
 
     #[test]

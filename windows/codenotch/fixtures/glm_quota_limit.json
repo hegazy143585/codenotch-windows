@@ -1,0 +1,39 @@
+{
+  "code": 200,
+  "msg": "ok",
+  "success": true,
+  "data": {
+    "level": "pro",
+    "limits": [
+      {
+        "type": "TIME_LIMIT",
+        "unit": 5,
+        "number": 1,
+        "percentage": 4.0,
+        "currentValue": 40,
+        "usage": 1000
+      },
+      {
+        "type": "TOKENS_LIMIT",
+        "unit": 6,
+        "number": 1,
+        "percentage": 8.1,
+        "nextResetTime": 1789190400000
+      },
+      {
+        "type": "TOKENS_LIMIT",
+        "unit": 3,
+        "number": 5,
+        "percentage": 12.5,
+        "currentValue": 1250000,
+        "usage": 12000000,
+        "nextResetTime": 1788682200000
+      },
+      {
+        "type": "TOKENS_LIMIT",
+        "unit": 3,
+        "number": 5
+      }
+    ]
+  }
+}
