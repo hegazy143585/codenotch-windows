@@ -9,6 +9,9 @@ xcuserdata/
 .swiftpm/
 
 cloudflare/*.zip
+# Release binaries go to GitHub Releases / the download host, never into git (W-16)
+site/*.dmg
+*.dmg
 
 # wrangler files
 .wrangler

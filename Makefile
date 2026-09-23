@@ -195,7 +195,7 @@ appcast: $(DMG)
 	rm -f $(PAGES_DIR)/appcast.xml
 	cp $(DMG) $(PAGES_DIR)/
 	$(SPARKLE_BIN)/generate_appcast $(PAGES_DIR) --download-url-prefix $(DOWNLOAD_PREFIX)
-	@echo "Publish by committing $(PAGES_DIR)/ and pushing."
+	@echo "Publish: commit $(PAGES_DIR)/appcast.xml and upload $(PAGES_DIR)/Codenotch.dmg to the host behind $(DOWNLOAD_PREFIX) (or a GitHub release). The dmg itself is git-ignored: binaries do not belong in the repository."
 
 release: notarize verify-release appcast
 	@echo "Notarized: $(DMG)"
