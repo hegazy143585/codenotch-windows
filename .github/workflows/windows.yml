@@ -3,7 +3,7 @@ name: Windows
 # Test on every push/PR; build the installer on every push; attach it to a GitHub release on `win-v*` tags.
 on:
   push:
-    branches: [main]
+    branches: [main, windows-live-status] # windows-live-status is this repo's default branch
     tags: ["win-v*"]
   pull_request:
   workflow_dispatch:
