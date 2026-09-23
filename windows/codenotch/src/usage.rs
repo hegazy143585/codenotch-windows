@@ -66,6 +66,9 @@ pub struct LimitWindow {
     /// Pure count window (no published denominator, e.g. Antigravity's requests today) — the cell shows ~N and the ring draws only its track
     #[serde(default)]
     pub count: Option<i64>,
+    /// What `count` counts when it is not requests ("tokens"); empty = requests
+    #[serde(default)]
+    pub unit: String,
     /// The number is ours, not the vendor's (upstream fidelity=.derived) — the card adds a ~ prefix
     #[serde(default)]
     pub derived: bool,

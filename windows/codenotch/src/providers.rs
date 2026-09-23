@@ -45,6 +45,7 @@ struct Claude;
 struct Codex;
 struct Cursor;
 struct Antigravity;
+struct GeminiApi;
 
 impl Provider for Claude {
     fn id(&self) -> &'static str { "claude" }
@@ -100,11 +101,24 @@ impl Provider for Antigravity {
     fn request_refresh(&self) { crate::antigravity::request_refresh() }
 }
 
+/// Tokens counted from Gemini CLI / OpenCode / Hermes logs; no network, no key (see gemini_api.rs)
+impl Provider for GeminiApi {
+    fn id(&self) -> &'static str { crate::gemini_api::ID }
+    fn name(&self) -> &'static str { "Gemini API" }
+    fn glyph(&self) -> &'static str { "G" }
+    fn page_url(&self) -> &'static str { "https://aistudio.google.com/usage" }
+    /// None of the three tools reports working state; only a pushed event would
+    fn activity(&self, _hooks_installed: bool) -> ActivitySupport { ActivitySupport::NotSupported }
+    fn load_persisted(&self) -> UsageSnapshot { crate::gemini_api::load_persisted() }
+    fn start(&self, app: AppHandle) { crate::gemini_api::start(app) }
+    fn request_refresh(&self) { crate::gemini_api::request_refresh() }
+}
+
 /// The API pollers read every 5 min while idle; two missed polls plus slack
 const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
-pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity];
+pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GeminiApi];
 
 pub fn find(id: &str) -> Option<&'static dyn Provider> {
     REGISTRY.iter().copied().find(|p| p.id() == id)
@@ -432,12 +446,12 @@ mod tests {
     #[test]
     fn installed_providers_keep_registry_order() {
         let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
-        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent"))]);
+        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent"))]);
         let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }

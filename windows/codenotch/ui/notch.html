@@ -204,7 +204,7 @@ function renderRing(){
     }
     svg.innerHTML=inner;
     if(p.snap.status==='needsAuth'||p.snap.status==='none'||(!h&&p.snap.windows.length)) pct.textContent='—';
-    else if(h && h.count!=null) pct.textContent='~'+h.count;
+    else if(h && h.count!=null) pct.textContent='~'+compact(h.count);
     else if(h) pct.textContent=(h.derived?'~':'')+Math.round(h.used*100)+'%';
     else pct.textContent='…';
     glyph.classList.toggle('dim', !!(h && h.used>=1));
@@ -224,6 +224,11 @@ function resetCopy(ms){
   return `Resets ${d.toLocaleDateString('en-US',{weekday:'short'})} ${t}`;
 }
 
+function compact(n){ return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'k':String(n); }
+function countCopy(w){
+  if(w.unit==='tokens') return `~${compact(w.count)} tokens`;
+  return w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today';
+}
 function ago(ageMs){ // age in ms → "5m ago"
   const m=Math.round(ageMs/60000);
   if(m<1) return 'just now';
@@ -259,7 +264,7 @@ function renderCard(){
     for(const w of snap.windows){
       if(w.count!=null){
         html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(w.label)}</span></div>
-          <div class="w-used">${w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today'}</div></div>`;
+          <div class="w-used">${countCopy(w)}</div></div>`;
         continue;
       }
       if(w.expired){

@@ -1,0 +1,7 @@
+{"sessionId": "6f0a", "projectHash": "9d2c", "startTime": "2026-09-01T09:12:33.104Z", "lastUpdated": "2026-09-01T09:41:02.881Z", "kind": "main"}
+{"id": "c7f2", "timestamp": "2026-09-01T09:12:41.402Z", "type": "gemini", "model": "gemini-2.5-pro", "content": ""}
+{"id": "c7f2", "timestamp": "2026-09-01T09:12:41.402Z", "type": "gemini", "model": "gemini-2.5-pro", "content": "", "tokens": {"input": 12345, "output": 218, "cached": 11000, "thoughts": 64, "tool": 0, "total": 12627}}
+{"id": "u1", "timestamp": "2026-09-01T09:13:00Z", "type": "user", "content": ""}
+{"id": "d9a1", "timestamp": "2026-09-01T09:20:00Z", "type": "gemini", "model": "gemini-2.5-flash", "content": "", "tokens": {"total": 900}}
+{"$set": {"lastUpdated": "2026-09-01T09:41:02.881Z"}}
+{"$rewindTo": "d9a1"}

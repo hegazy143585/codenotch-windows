@@ -79,6 +79,7 @@ pub fn windows(s: &Sample) -> Vec<LimitWindow> {
         count: None,
         derived: false,
         expired: false,
+        unit: String::new(),
     };
     vec![w("session", "Current session", s.five_hour), w("weekly_all", "Weekly (all models)", s.seven_day)]
 }

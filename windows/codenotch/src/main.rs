@@ -20,6 +20,7 @@ mod activity;
 mod diag;
 mod watcher;
 mod providers;
+mod gemini_api;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
