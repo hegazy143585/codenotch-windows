@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -8,20 +8,22 @@
   :root{color-scheme:light dark;--bg:#fff;--fg:#111;--mut:#666;--acc:#111}
   @media (prefers-color-scheme:dark){:root{--bg:#0b0b0c;--fg:#f2f2f3;--mut:#9a9aa0;--acc:#fff}}
   body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,Segoe UI,sans-serif;display:grid;place-items:center;min-height:100vh}
-  main{max-width:34rem;padding:2rem 1rem}
+  main{max-width:36rem;padding:2rem 1rem}
   h1{margin:0 0 .5rem;font-size:2rem}
   p{color:var(--mut)}
   a.btn{display:inline-block;margin:1rem 0;padding:.8rem 1.4rem;border-radius:999px;background:var(--acc);color:var(--bg);text-decoration:none;font-weight:600}
   small{color:var(--mut)}
+  [dir=rtl]{text-align:right}
 </style>
 </head>
 <body>
 <main>
   <h1>Codenotch for Windows</h1>
-  <p>A notch on the edge of your screen showing how much of your Claude, Codex, Cursor and Antigravity usage is left, and whether Claude is still working. Hover it to see details.</p>
-  <a class="btn" href="Codenotch-windows-0.3.0.zip" download>Download v0.3.0 (.zip)</a>
-  <p><small>Unzip anywhere and run <code>codenotch.exe</code>. Requires Windows 10/11 with the WebView2 runtime. Each user signs in to their own tools; the app only reads local sessions.<br>
-  Windows port of <a href="https://github.com/vinzdg/codenotch">vinzdg/codenotch</a> (MIT).</small></p>
+  <p>A notch on the edge of your screen that shows how much of each AI coding tool's limit you have left — Claude, Codex, Cursor, GitHub Copilot, Gemini, Grok and more — when it resets, and which tool is working or waiting for you.</p>
+  <a class="btn" href="https://github.com/hegazy143585/codenotch-windows/releases/latest/download/Codenotch-Setup.exe">Download for Windows</a>
+  <p dir="rtl" lang="ar">شريط صغير على حافة الشاشة يُظهر كم تبقّى من حدود أدوات الذكاء الاصطناعي للبرمجة، ومتى يُعاد ضبطها، وأي أداة تعمل أو تنتظرك. الواجهة متاحة بالعربية.</p>
+  <p><small>Per-user installer for Windows 10/11, updates itself. Everything runs on your PC; it only reads the sessions your own tools keep.<br>
+  <a href="https://github.com/hegazy143585/codenotch-windows">Source and release notes on GitHub</a> · MIT · based on <a href="https://github.com/vinzdg/codenotch">vinzdg/codenotch</a></small></p>
 </main>
 </body>
 </html>

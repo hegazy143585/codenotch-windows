@@ -1,8 +1,8 @@
 [package]
 name = "codenotch"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
-description = "Codenotch for Windows — usage notch for Claude, Codex, Cursor and Antigravity"
+description = "Codenotch for Windows — AI coding usage and activity notch (Claude, Codex, Cursor, Copilot, Gemini and more)"
 license = "MIT"
 repository = "https://github.com/hegazy143585/codenotch-windows"
 

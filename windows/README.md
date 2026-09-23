@@ -1,8 +1,8 @@
-# Codenotch for Windows
+# Codenotch for Windows — developer notes
 
-A Windows port of [Codenotch](https://github.com/vinzdg/codenotch) — the usage notch that
-sits on the edge of your screen and answers two questions at a glance:
-**how much of my AI allowance is left**, and **is Claude still working**.
+The user-facing overview, download and feature list are in the [main README](../README.md). This page
+covers how the Windows app reads each source, how to build it, and how other tools report to it.
+Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) · work list: [TASKS.md](TASKS.md) · releasing: [RELEASE.md](RELEASE.md).
 
 Same design language as the macOS original (inverse-rounded pill, colour-graded rings,
 hover card with per-window bars), rebuilt for Windows in Rust + Tauri 2 / WebView2.
@@ -18,21 +18,28 @@ documented behaviour and the wire formats.
 | **Cursor** | The editor's own session from `state.vscdb` → `cursor.com/api/usage-summary` | Included usage / API usage / on-demand, reset at billing-cycle end. Nothing to sign into: it borrows the editor's session, so there is only ever one account. |
 | **Antigravity** | The local `language_server` bridge (quota summary), then Google's Cloud Code API for licensed accounts, then a plain count of today's model turns | Honest degradation: a percentage only when one exists, a `~count` when it does not. |
 
-Providers that are not installed simply do not get a cell.
+Also ported from the macOS app (W-07): GitHub Copilot, Gemini API (local logs), GLM, OpenCode Go, Grok,
+Command Code, Ollama (local runtime and cloud) and Perplexity (in-app WebView). Each one's source and
+type is in the provider matrix in [ARCHITECTURE.md](ARCHITECTURE.md#provider-matrix).
+
+Providers that are not installed simply do not get a cell, and any provider can be hidden or reordered in
+Settings.
 
 ## Install / build
 
-Prerequisites: Rust (MSVC toolchain), WebView2 runtime (ships with Windows 11).
+Prerequisites: Rust (MSVC toolchain), `cargo install tauri-cli --version "^2" --locked`, WebView2
+runtime (ships with Windows 11).
 
 ```powershell
-# from this directory (the repo root here; `windows/` inside the upstream repo)
-cargo build --release
-.\target\release\codenotch.exe          # pill appears on the right edge of the primary monitor
+# from this directory
+cargo test --workspace --locked
+powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1   # per-user NSIS installer
 .\target\release\codenotch.exe doctor   # self-diagnosis: credentials, data sources, icons, hooks
 ```
 
-Tray menu: refresh now, reset position, open data folder (`%APPDATA%\codenotch` — logs,
-persisted readings, icon overrides), start with Windows, install/uninstall Claude Code hooks.
+Tray menu: settings, install/uninstall Claude Code hooks, language (English, العربية, 中文, 日本語, 한국어),
+refresh now, reset position, open data folder (`%APPDATA%\codenotch` — logs, persisted readings, icon
+overrides), hover-only, start with Windows, connect Perplexity, install update (when one is waiting).
 
 ### Icons
 
@@ -75,10 +82,13 @@ Rules of the road:
 
 ```
 .
-├── codenotch/          Tauri 2 app: window, tray, providers (usage.rs, codex.rs, cursor.rs, antigravity.rs),
-│   ├── src/            session engine (watcher.rs, state.rs, focus.rs), glyphs.rs, doctor.rs
-│   ├── ui/notch.html   the pill + hover card (single file, no framework)
+├── codenotch/          Tauri 2 app
+│   ├── src/            providers.rs (registry), remote.rs (shared HTTP loop), one module per provider,
+│   │                   session engine (watcher.rs, state.rs, focus.rs), settings.rs, updates.rs, doctor.rs
+│   ├── ui/             notch.html (pill + hover card), settings.html — single files, no framework
+│   ├── fixtures/       sanitized provider replies used by the parser tests
 │   └── glyphs/         provider marks (+ NOTICE.md)
+├── scripts/            build-installer.ps1
 └── codenotch-hook/     <5 ms hook messenger Claude Code calls; forwards events to the app
 ```
 
@@ -94,14 +104,3 @@ engine originated in [Im-Midi/Pac-Man](https://github.com/Im-Midi/Pac-Man) (MIT)
 ## License
 
 MIT — see `LICENSE`. The Codenotch design and name belong to the upstream author.
-
-## Installer
-
-`scripts\build-installer.ps1` builds a per-user NSIS installer that includes `codenotch-hook.exe`.
-CI builds the same installer on every push — see `RELEASE.md`.
-
-## Settings
-
-Tray → **Settings…** (it also opens by itself on first launch): choose which providers appear and in what order,
-store an Ollama Cloud key (kept in Windows Credential Manager), connect Perplexity, install the Claude Code
-hooks, and set language, hover-only and start with Windows.
