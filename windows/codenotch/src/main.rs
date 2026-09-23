@@ -25,6 +25,7 @@ mod ollama_local;
 mod remote;
 mod glm;
 mod ollama_cloud;
+mod opencode;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
