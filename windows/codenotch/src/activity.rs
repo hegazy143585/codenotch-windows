@@ -798,16 +798,11 @@ pub fn start(app: AppHandle) {
                 }
                 // A provider whose last run just ended: its usage moved, so ask for a fresh reading now
                 // rather than at the next five-minute poll (each poller rate-limits itself).
-                for prov in ["claude", "codex", "cursor", "gemini"] {
-                    let had = last.iter().any(|a| a.provider == prov);
-                    let has = found.iter().any(|a| a.provider == prov);
+                for p in crate::providers::REGISTRY {
+                    let had = last.iter().any(|a| a.provider == p.id());
+                    let has = found.iter().any(|a| a.provider == p.id());
                     if had && !has {
-                        match prov {
-                            "claude" => crate::usage::request_refresh(),
-                            "codex" => crate::codex::request_refresh(),
-                            "cursor" => crate::cursor::request_refresh(),
-                            _ => crate::antigravity::request_refresh(),
-                        }
+                        p.request_refresh();
                     }
                 }
                 last = found.clone();
@@ -816,6 +811,7 @@ pub fn start(app: AppHandle) {
                     *st.activity.lock().unwrap() = found.clone();
                 }
                 let _ = app.emit("activity", &found);
+                crate::providers::publish(&app); // an activity-only provider may have appeared or left
             }
             std::thread::sleep(INTERVAL);
         }

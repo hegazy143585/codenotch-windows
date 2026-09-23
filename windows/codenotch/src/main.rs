@@ -19,6 +19,7 @@ mod glyphs;
 mod activity;
 mod diag;
 mod watcher;
+mod providers;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -32,11 +33,8 @@ pub const NOTCH_H: f64 = 460.0; // 300 clipped the card once it held three windo
 pub struct AppState {
     pub store: Mutex<state::Store>,
     pub cfg: Mutex<config::Config>,
-    pub usage: Mutex<usage::UsageSnapshot>,
-    /// Codex snapshot (same UsageSnapshot shape; status may also be none/absent)
-    pub codex: Mutex<usage::UsageSnapshot>,
-    pub cursor: Mutex<usage::UsageSnapshot>,
-    pub antigravity: Mutex<usage::UsageSnapshot>,
+    /// One usage snapshot per registered provider (`providers::REGISTRY`)
+    pub usage: providers::Slots,
     /// Provider glyph cache, collected at launch and again on a tray refresh
     pub glyphs: Mutex<std::collections::HashMap<String, glyphs::Glyph>>,
     /// Working state of the non-Claude providers (Cursor reports it; Codex and Antigravity are inferred from recent writes)
@@ -259,27 +257,20 @@ fn get_alert() -> Option<String> {
     server::bind_alert()
 }
 
+/// Every cell the notch shows, in order, with its usage snapshot and capabilities
 #[tauri::command]
-fn get_usage(state: tauri::State<AppState>) -> usage::UsageSnapshot {
-    state.usage.lock().unwrap().clone()
+fn get_providers(app: AppHandle) -> Vec<providers::ProviderSnapshot> {
+    providers::current(&app)
 }
 
 #[tauri::command]
 fn refresh_usage(app: AppHandle) {
     {
         let st = app.state::<AppState>();
-        let mut u = st.usage.lock().unwrap();
+        let mut u = st.usage.get("claude").lock().unwrap();
         u.backoff_until = 0;
     }
-    usage::request_refresh();
-    codex::request_refresh();
-    cursor::request_refresh();
-    antigravity::request_refresh();
-}
-
-#[tauri::command]
-fn get_antigravity(state: tauri::State<AppState>) -> usage::UsageSnapshot {
-    state.antigravity.lock().unwrap().clone()
+    providers::refresh_all();
 }
 
 #[tauri::command]
@@ -314,25 +305,11 @@ fn open_data_dir() {
     let _ = cmd.spawn();
 }
 
-#[tauri::command]
-fn get_cursor(state: tauri::State<AppState>) -> usage::UsageSnapshot {
-    state.cursor.lock().unwrap().clone()
-}
-
-#[tauri::command]
-fn get_codex(state: tauri::State<AppState>) -> usage::UsageSnapshot {
-    state.codex.lock().unwrap().clone()
-}
-
 /// A click on a cell opens that provider's usage page
 #[tauri::command]
 fn open_provider_page(provider: String) {
-    let url = match provider.as_str() {
-        "codex" => "https://chatgpt.com/#settings/Account",
-        "cursor" => "https://cursor.com/dashboard",
-        "gemini" => "https://antigravity.google",
-        _ => "https://claude.ai/settings/usage",
-    };
+    // Activity-only providers have no known page: nothing to open
+    let Some(url) = providers::find(&provider).map(|p| p.page_url()) else { return };
     let mut cmd = std::process::Command::new("cmd");
     cmd.args(["/C", "start", "", url]);
     #[cfg(windows)]
@@ -674,10 +651,7 @@ fn main() {
         .manage(AppState {
             store: Mutex::new(Default::default()),
             cfg: Mutex::new(cfg),
-            usage: Mutex::new(usage::load_persisted()),
-            codex: Mutex::new(codex::load_persisted()),
-            cursor: Mutex::new(cursor::load_persisted()),
-            antigravity: Mutex::new(antigravity::load_persisted()),
+            usage: providers::Slots::load(),
             glyphs: Mutex::new(Default::default()),
             activity: Mutex::new(Vec::new()),
         })
@@ -685,10 +659,7 @@ fn main() {
             get_state,
             get_prefs,
             get_alert,
-            get_usage,
-            get_codex,
-            get_cursor,
-            get_antigravity,
+            get_providers,
             get_glyphs,
             get_activity,
             open_data_dir,
@@ -714,12 +685,7 @@ fn main() {
             server::start(handle.clone(), port);
             std::thread::spawn(autostart::repoint_if_moved); // reg.exe calls: off the UI thread
             watcher::start(handle.clone());
-            usage::start(handle.clone());
-            claude_desktop::start(handle.clone());
-            claude_refresh::start(handle.clone());
-            codex::start(handle.clone());
-            cursor::start(handle.clone());
-            antigravity::start(handle.clone());
+            providers::start_all(&handle);
             activity::start(handle.clone());
             // Collecting glyphs may read icon resources out of a few executables; do it off the main thread and push when done
             let gh = handle.clone();

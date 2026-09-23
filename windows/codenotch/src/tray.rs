@@ -105,13 +105,10 @@ fn handle(app: &AppHandle, id: &str) {
         "refresh" => {
             {
                 let st = app.state::<crate::AppState>();
-                let mut u = st.usage.lock().unwrap();
+                let mut u = st.usage.get("claude").lock().unwrap();
                 u.backoff_until = 0;
             }
-            crate::usage::request_refresh();
-            crate::codex::request_refresh();
-            crate::cursor::request_refresh();
-            crate::antigravity::request_refresh();
+            crate::providers::refresh_all();
             let a = app.clone();
             std::thread::spawn(move || crate::reload_glyphs(&a));
         }

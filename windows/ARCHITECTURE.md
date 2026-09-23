@@ -4,7 +4,8 @@
 | Part | File(s) | Role |
 |---|---|---|
 | App shell | `codenotch/src/main.rs` | Tauri 2 app, window placement, hit-testing, tray wiring, Tauri commands |
-| Usage providers | `usage.rs` (Claude API), `claude_desktop.rs`, `claude_refresh.rs`, `codex.rs`, `cursor.rs`, `antigravity.rs` | Each runs its own thread and writes its own `UsageSnapshot` field in `AppState` |
+| Provider registry | `providers.rs` | `Provider` trait + `REGISTRY`; one `UsageSnapshot` slot per id (`AppState.usage`); builds the `Vec<ProviderSnapshot>` the page renders |
+| Usage providers | `usage.rs` (Claude API), `claude_desktop.rs`, `claude_refresh.rs`, `codex.rs`, `cursor.rs`, `antigravity.rs` | Each runs its own thread and writes only its own slot |
 | Activity engine | `activity.rs`, `watcher.rs`, `state.rs`, `focus.rs` | 2 s tick: pushed events + per-provider probes (Cursor SQLite, Codex rollout files, Claude IO sampling, Antigravity writes) |
 | Event ingress | `server.rs` + `codenotch-hook/` | `127.0.0.1:48666` HTTP. `codenotch-hook.exe <event> [--provider id]` POSTs events; `GET /activity` returns the merged list |
 | UI | `ui/notch.html` | Single-file pill + hover card, no framework |
@@ -12,8 +13,10 @@
 | Config | `config.rs` | `%APPDATA%\codenotch\config.json` |
 
 ## Data flow
-Provider thread → `AppState.<provider>` → `broadcast` → UI `get_*` command per provider → `providers()` in
-`notch.html` builds the cell list (4 hardcoded + any provider that pushed activity).
+Provider thread → its slot in `AppState.usage` → `providers::publish` → event `providers` (the full
+`Vec<ProviderSnapshot>`: id, name, glyph, capabilities, usage) → `notch.html` renders the list as-is.
+The list holds registered providers that are installed (Claude always), then any tool that only pushed
+activity through `codenotch-hook --provider <id>`. The page fetches the same list with `get_providers`.
 
 ## Provider matrix
 | Provider | Usage source | Source type | Activity source | Activity type |
@@ -32,7 +35,7 @@ Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity 
 changes, and the rest only show activity if the user wires up the hook manually. There is no per-provider
 "activity supported / inferred / not supported" flag, so the UI can't tell the user which case they're in.
 
-## Main structural limit
-Adding a provider with usage needs edits in at least four places: a new `AppState` field, a new Tauri
-command, a new UI variable, and a line in `providers()` plus the hover-card text. The target is one
-provider trait + one `Vec<ProviderSnapshot>` (see `TASKS.md`, W-06).
+## Adding a provider
+A provider with usage needs one module (`load_persisted` / `start` / `request_refresh`, writing its slot
+and calling `providers::publish`), one `Provider` impl in `providers.rs`, and one line in `REGISTRY`.
+No UI change. A provider with activity only needs no code: it pushes events through the hook.

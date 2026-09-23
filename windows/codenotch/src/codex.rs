@@ -30,7 +30,7 @@ use crate::AppState;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 const POLL_SECS: u64 = 300; // idle: a fixed 5 min (upstream cadence; a tray refresh interrupts it)
 const POLL_ACTIVE_SECS: u64 = 60; // while a turn is in flight (activity probe or pushed event): usage moves with every turn
@@ -470,17 +470,15 @@ fn cap(s: &str) -> String {
 
 fn broadcast(app: &AppHandle, snap: UsageSnapshot) {
     let st = app.state::<AppState>();
-    *st.codex.lock().unwrap() = snap.clone();
+    *st.usage.get("codex").lock().unwrap() = snap.clone();
     persist(&snap);
-    let _ = app.emit("codex", &snap);
+    crate::providers::publish(app);
 }
 
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         {
-            let st = app.state::<AppState>();
-            let snap = st.codex.lock().unwrap().clone();
-            let _ = app.emit("codex", &snap);
+            crate::providers::publish(&app);
         }
         if !present() {
             broadcast(&app, UsageSnapshot { status: "absent".into(), ..Default::default() });

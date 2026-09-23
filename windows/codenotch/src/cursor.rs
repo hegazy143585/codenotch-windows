@@ -25,7 +25,7 @@ use crate::usage::{LimitWindow, UsageSnapshot};
 use crate::AppState;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 const ENDPOINT: &str = "https://cursor.com/api/usage-summary";
 const POLL_SECS: u64 = 300;
@@ -258,9 +258,9 @@ fn read_once(prev: &UsageSnapshot) -> UsageSnapshot {
 
 fn broadcast(app: &AppHandle, snap: UsageSnapshot) {
     let st = app.state::<AppState>();
-    *st.cursor.lock().unwrap() = snap.clone();
+    *st.usage.get("cursor").lock().unwrap() = snap.clone();
     persist(&snap);
-    let _ = app.emit("cursor", &snap);
+    crate::providers::publish(app);
 }
 
 fn sleep_interruptible(secs: u64) {
@@ -275,9 +275,7 @@ fn sleep_interruptible(secs: u64) {
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         {
-            let st = app.state::<AppState>();
-            let snap = st.cursor.lock().unwrap().clone();
-            let _ = app.emit("cursor", &snap);
+            crate::providers::publish(&app);
         }
         if !present() {
             broadcast(&app, UsageSnapshot { status: "absent".into(), ..Default::default() });
@@ -291,7 +289,7 @@ pub fn start(app: AppHandle) {
         loop {
             let prev = {
                 let st = app.state::<AppState>();
-                let s = st.cursor.lock().unwrap().clone();
+                let s = st.usage.get("cursor").lock().unwrap().clone();
                 s
             };
             let snap = read_once(&prev);

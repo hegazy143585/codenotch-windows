@@ -133,7 +133,7 @@ pub fn start(app: AppHandle) {
                     } else {
                         let newer = {
                             let st = app.state::<AppState>();
-                            let u = st.usage.lock().unwrap();
+                            let u = st.usage.get("claude").lock().unwrap();
                             u.fetched_at < s.t
                         };
                         if newer {

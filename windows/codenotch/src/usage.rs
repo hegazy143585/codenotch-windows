@@ -13,7 +13,7 @@ use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 const ENDPOINT: &str = "https://api.anthropic.com/api/oauth/usage";
 /// While Claude is working the ring must move with the session, not five minutes behind it. On top
@@ -324,21 +324,19 @@ fn backoff_secs(consecutive: u32, retry_after_floor: u64) -> u64 {
 pub fn set_and_broadcast(app: &AppHandle, mutate: impl FnOnce(&mut UsageSnapshot)) {
     let st = app.state::<AppState>();
     let snap = {
-        let mut u = st.usage.lock().unwrap();
+        let mut u = st.usage.get("claude").lock().unwrap();
         mutate(&mut u);
         u.clone()
     };
     persist(&snap);
-    let _ = app.emit("usage", &snap);
+    crate::providers::publish(app);
 }
 
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         // Broadcast the persisted old reading at startup (stale beats blank)
         {
-            let st = app.state::<AppState>();
-            let snap = st.usage.lock().unwrap().clone();
-            let _ = app.emit("usage", &snap);
+            crate::providers::publish(&app);
         }
         let mut consecutive_429: u32 = 0;
         let mut last_attempt: u64 = 0;
@@ -346,7 +344,7 @@ pub fn start(app: AppHandle) {
             // No requests inside the backoff window
             let (bu, limited_sig) = {
                 let st = app.state::<AppState>();
-                let u = st.usage.lock().unwrap();
+                let u = st.usage.get("claude").lock().unwrap();
                 (u.backoff_until, u.limited_sig.clone())
             };
             let now = now_ms();

@@ -125,10 +125,8 @@ const AMPLE='#00FF88', WATCH='#F2FF00', CRIT='#FF3F00';
 const TRACK='#303030', AMBER='#FFBF00', RUNGREEN='#28E07B';
 const tone=f=> f>=0.8?CRIT : f>=0.5?WATCH : AMPLE;
 
-let usage={status:'',windows:[],fetched_at:0,note:''};
-let codexSnap={status:'absent',windows:[],fetched_at:0,note:''};
-let cursorSnap={status:'absent',windows:[],fetched_at:0,note:''};
-let agSnap={status:'absent',windows:[],fetched_at:0,note:''};
+// The provider list comes from Rust (providers.rs): [{id,name,glyph,capabilities,usage}] in pill order
+let provs=[{id:'claude',name:'Claude',glyph:'C',capabilities:{usage:true},usage:{status:'',windows:[],fetched_at:0,note:''}}];
 let glyphs={}; // id → {kind:'mark'|'appicon', url}
 let activity=[]; // working state of the non-Claude providers: {provider,state:'busy'|'waiting',name,detail,since}
 // "Is it working?" per provider: Claude from the four-state engine, the others from the activity probe. Returns running | attention | idle
@@ -151,23 +149,10 @@ function glyphHtml(p,small){
   if(g&&g.url) return `<img class="${g.kind}" src="${g.url}" alt="${esc(p.name)}"${small?' style="width:16px;height:16px;border-radius:4px"':''}>`;
   return small?'':esc(p.glyph); // fallback letter
 }
-// Provider table (order = top to bottom in the pill). `glyph` is the fallback letter used when no mark is available
+// Cells top to bottom. `glyph` is the fallback letter used when no mark is available. Which providers
+// appear (installed ones, plus any tool that only pushes activity) is decided in Rust.
 function providers(){
-  const list=[{id:'claude',name:'Claude',glyph:'C',snap:usage}];
-  if(codexSnap.status!=='absent') list.push({id:'codex',name:'Codex',glyph:'Cx',snap:codexSnap});
-  if(cursorSnap.status!=='absent') list.push({id:'cursor',name:'Cursor',glyph:'Cu',snap:cursorSnap});
-  if(agSnap.status!=='absent') list.push({id:'gemini',name:'Antigravity',glyph:'Ag',snap:agSnap});
-  // Data-driven tail: any module that reports through the generic event ingress but has no dedicated
-  // usage snapshot still earns a cell while it is active. This is what lets a *new* module light up the
-  // notch with zero edits here — adding a provider never means touching this list again.
-  const known=new Set(list.map(p=>p.id));
-  for(const a of activity){
-    if(known.has(a.provider)) continue;
-    known.add(a.provider);
-    const nm=a.provider.charAt(0).toUpperCase()+a.provider.slice(1);
-    list.push({id:a.provider,name:nm,glyph:(a.provider[0]||'?').toUpperCase(),snap:{status:'none',windows:[],fetched_at:0,note:''}});
-  }
-  return list;
+  return provs.map(p=>({...p,snap:p.usage}));
 }
 function headlineOf(snap){
   if(!snap.windows.length) return null;
@@ -186,13 +171,6 @@ function svgArc(r,frac,color,width,extra=''){
     stroke-dasharray="${(C*frac).toFixed(2)} ${C.toFixed(2)}" stroke-linecap="butt"
     transform="rotate(-90 28 28)" ${extra}/>`;
 }
-
-function headline(){ // the cell shows the most constrained window — the one that will stop you first
-  if(!usage.windows.length) return null;
-  return usage.windows.reduce((a,b)=> b.used>a.used?b:a);
-}
-
-function isStale(){ return staleOf(usage); }
 
 function renderRing(){
   const ps=providers();
@@ -253,8 +231,8 @@ function renderCard(){
   let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(p.name)} Usage</span></div>`;
   if(staleOf(snap)&&snap.fetched_at) html+=`<div class="c-sub">Updated ${ago(snap.fetched_at)}</div>`;
   if(snap.status==='needsAuth'){
-    const who={claude:'Sign in to Claude Code to see usage.',cursor:'Sign in to Cursor to see usage.',codex:'Sign in to Codex to see usage.',gemini:'Sign in to Antigravity to see usage.'}[p.id]||'';
-    html+=`<div class="c-note">${who}<br>${esc(snap.note)}</div>`;
+    const who=p.id==='claude'?'Claude Code':p.name;
+    html+=`<div class="c-note">Sign in to ${esc(who)} to see usage.<br>${esc(snap.note)}</div>`;
   }else if(!snap.windows.length){
     html+=`<div class="c-note">${esc(snap.note||'Waiting for first reading…')}</div>`;
   }else{
@@ -410,7 +388,7 @@ document.addEventListener('mouseout',e=>{ // relatedTarget null = the cursor lef
 });
 listen('pointer_left',()=>{clearTimeout(hideTimer);hideCard();}).catch(()=>{});
 // Card content changes change its height -> report the hot rectangles again
-listen('usage',()=>{if(card.classList.contains('show'))armWatchdog();}).catch(()=>{});
+listen('providers',()=>{if(card.classList.contains('show'))armWatchdog();}).catch(()=>{});
 listen('state',()=>{if(card.classList.contains('show'))armWatchdog();}).catch(()=>{});
 /* The pill can be dragged up and down the right edge. Press and move more than 4 px = drag (handed to Rust,
    which follows the system cursor; the card is collapsed first); release without moving = click (opens the provider's usage page). */
@@ -436,25 +414,19 @@ function notice(msg){
   clearTimeout(n._h);n._h=setTimeout(()=>n.classList.remove('show'),6000);
 }
 
-listen('usage',e=>{usage=e.payload||usage;renderRing();if(card.classList.contains('show'))renderCard();})
-  .catch(e=>notice('listen(usage) failed: '+e));
+listen('providers',e=>{provs=e.payload||provs;renderRing();if(card.classList.contains('show'))renderCard();})
+  .catch(e=>notice('listen(providers) failed: '+e));
 listen('state',e=>{stateSnap=e.payload||stateSnap;renderRing();if(card.classList.contains('show'))renderCard();})
   .catch(e=>notice('listen(state) failed: '+e));
 listen('notice',e=>notice(e.payload)).catch(()=>{});
 function showAlert(msg){ const a=document.getElementById('alert'); a.textContent=msg||''; a.classList.toggle('show',!!msg); }
 listen('alert',e=>showAlert(e.payload)).catch(()=>{});
 invoke('get_alert').then(showAlert).catch(()=>{});
-listen('codex',e=>{codexSnap=e.payload||codexSnap;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
-listen('cursor',e=>{cursorSnap=e.payload||cursorSnap;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
-invoke('get_cursor').then(u=>{cursorSnap=u||cursorSnap;renderRing();}).catch(()=>{});
-listen('antigravity',e=>{agSnap=e.payload||agSnap;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
-invoke('get_antigravity').then(u=>{agSnap=u||agSnap;renderRing();}).catch(()=>{});
 listen('glyphs',e=>{glyphs=e.payload||glyphs;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
 listen('activity',e=>{activity=e.payload||activity;renderRing();if(card.classList.contains('show'))renderCard();}).catch(()=>{});
 invoke('get_activity').then(a=>{activity=a||activity;renderRing();}).catch(()=>{});
 invoke('get_glyphs').then(g=>{glyphs=g||glyphs;renderRing();}).catch(()=>{});
-invoke('get_codex').then(u=>{codexSnap=u||codexSnap;renderRing();}).catch(()=>{});
-invoke('get_usage').then(u=>{usage=u||usage;renderRing();}).catch(e=>notice('get_usage failed: '+e));
+invoke('get_providers').then(l=>{provs=l||provs;renderRing();}).catch(e=>notice('get_providers failed: '+e));
 invoke('get_state').then(s=>{stateSnap=s||stateSnap;renderRing();}).catch(()=>{});
 invoke('get_prefs').then(applyPrefs).catch(()=>{});
 listen('prefs',e=>applyPrefs(e.payload)).catch(()=>{});

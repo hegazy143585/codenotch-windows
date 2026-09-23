@@ -40,7 +40,7 @@ use crate::AppState;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 const POLL_SECS: u64 = 300;
 const POLL_ACTIVE_SECS: u64 = 60; // while a run is in flight: usage moves with every run
@@ -559,9 +559,9 @@ fn read_once(rt: &mut Runtime, prev: &UsageSnapshot) -> UsageSnapshot {
 
 fn broadcast(app: &AppHandle, snap: UsageSnapshot) {
     let st = app.state::<AppState>();
-    *st.antigravity.lock().unwrap() = snap.clone();
+    *st.usage.get("gemini").lock().unwrap() = snap.clone();
     persist(&snap);
-    let _ = app.emit("antigravity", &snap);
+    crate::providers::publish(app);
 }
 
 fn sleep_interruptible(secs: u64) {
@@ -576,9 +576,7 @@ fn sleep_interruptible(secs: u64) {
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         {
-            let st = app.state::<AppState>();
-            let snap = st.antigravity.lock().unwrap().clone();
-            let _ = app.emit("antigravity", &snap);
+            crate::providers::publish(&app);
         }
         if !present() {
             broadcast(&app, UsageSnapshot { status: "absent".into(), ..Default::default() });
@@ -593,7 +591,7 @@ pub fn start(app: AppHandle) {
         loop {
             let prev = {
                 let st = app.state::<AppState>();
-                let s = st.antigravity.lock().unwrap().clone();
+                let s = st.usage.get("gemini").lock().unwrap().clone();
                 s
             };
             let snap = read_once(&mut rt, &prev);
