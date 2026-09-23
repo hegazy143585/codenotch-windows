@@ -18,6 +18,8 @@ pub struct Row {
     /// Plain words for the status, never a raw code
     pub state: String,
     pub note: String,
+    /// `note` as codes the page translates (W-26, same dictionary as the card)
+    pub note_parts: Vec<crate::notes::NotePart>,
     pub has_usage: bool,
 }
 
@@ -34,20 +36,20 @@ pub fn state_words(status: &str) -> &'static str {
 }
 
 /// Registered providers in the user's order, with their switch and a status in words
-pub fn rows(order: &[String], disabled: &[String], status: impl Fn(&str) -> (String, String)) -> Vec<Row> {
+pub fn rows(order: &[String], disabled: &[String], status: impl Fn(&str) -> (String, String, Vec<crate::notes::NotePart>)) -> Vec<Row> {
     let mut ids: Vec<&'static str> = REGISTRY.iter().map(|p| p.id()).collect();
     providers::sort_by_order(&mut ids, order, |id| id);
     ids.into_iter()
         .map(|id| {
             let p = providers::find(id).expect("registered");
-            let (st, note) = status(id);
+            let (st, note, note_parts) = status(id);
             // Absent means something different for the providers that need the user to act here
             let state = match (id, st.as_str()) {
                 (crate::perplexity::ID, "absent") => "Not connected — see Signed-in sessions",
                 (crate::ollama_cloud::ID, "absent") => "No API key — see Keys",
                 _ => state_words(&st),
             };
-            Row { id: id.into(), name: p.name().into(), enabled: !disabled.iter().any(|d| d == id), state: state.into(), note, has_usage: p.has_usage() }
+            Row { id: id.into(), name: p.name().into(), enabled: !disabled.iter().any(|d| d == id), state: state.into(), note, note_parts, has_usage: p.has_usage() }
         })
         .collect()
 }
@@ -97,7 +99,7 @@ fn view(app: &AppHandle) -> View {
     };
     let rows = rows(&order, &disabled, |id| {
         let u = st.usage.get(id).lock().unwrap_or_else(|e| e.into_inner()).clone();
-        (u.status, u.note)
+        (u.status, u.note, u.note_parts)
     });
     View {
         rows,
@@ -271,19 +273,30 @@ mod tests {
     #[test]
     fn rows_follow_the_saved_order_then_the_registry() {
         let order = vec!["codex".to_string(), "gone-provider".to_string(), "claude".to_string()];
-        let r = rows(&order, &[], |_| ("ok".into(), String::new()));
+        let r = rows(&order, &[], |_| ("ok".into(), String::new(), vec![]));
         assert_eq!(&ids(&r)[..3], &["codex", "claude", "cursor"]);
         assert_eq!(r.len(), REGISTRY.len());
     }
 
     #[test]
     fn disabled_rows_are_switched_off_and_statuses_are_words() {
-        let r = rows(&[], &["cursor".into()], |id| (if id == "codex" { "needsAuth".into() } else { "absent".into() }, String::new()));
+        let r = rows(&[], &["cursor".into()], |id| (if id == "codex" { "needsAuth".into() } else { "absent".into() }, String::new(), vec![]));
+
         let cursor = r.iter().find(|x| x.id == "cursor").unwrap();
         assert!(!cursor.enabled);
         assert_eq!(r.iter().find(|x| x.id == "codex").unwrap().state, "Sign-in needed");
         assert_eq!(r[0].state, "Not found on this PC");
         assert_eq!(r.iter().find(|x| x.id == "perplexity").unwrap().state, "Not connected — see Signed-in sessions");
+    }
+
+    /// W-26: the settings page gets the note codes too, so it can translate them like the card
+    #[test]
+    fn rows_carry_the_note_codes_to_the_page() {
+        let parts = vec![crate::notes::c("nCodexRejected")];
+        let r = rows(&[], &[], |_| ("needsAuth".into(), crate::notes::render(&parts), parts.clone()));
+        let v = serde_json::to_value(&r[0]).unwrap();
+        assert_eq!(v["note"], "Codex rejected its sign-in — sign in to Codex again");
+        assert_eq!(v["note_parts"], serde_json::json!([{"code": "nCodexRejected"}]));
     }
 
     #[test]

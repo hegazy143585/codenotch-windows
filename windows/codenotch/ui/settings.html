@@ -96,13 +96,14 @@
   </div>
 </main>
 <div id="msg"></div>
+<script src="notes.js"></script>
 <script>
 const invoke = window.__TAURI__.core.invoke;
 const listen = window.__TAURI__.event.listen;
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 const $=id=>document.getElementById(id);
 /* Arabic for this page (W-13). Keys are the English text; anything missing stays English.
-   Provider notes come from the providers and stay as they are. */
+   Provider notes arrive as codes and are translated with the card's dictionary in notes.js (W-26). */
 const AR={
  'Providers':'المزوّدون','Switch a provider off to hide its cell. The arrows set the order from top to bottom.':'أوقف مزوّدًا لإخفاء خانته. الأسهم تحدد الترتيب من الأعلى إلى الأسفل.',
  'Keys Codenotch keeps':'المفاتيح التي يحتفظ بها Codenotch','Stored in Windows Credential Manager for your account, never in a file and never shown again.':'تُحفظ في مدير بيانات الاعتماد في Windows لحسابك، ولا تُكتب في ملف ولا تُعرض مرة أخرى.',
@@ -152,7 +153,8 @@ function render(v){
       <label class="switch"><input type="checkbox" class="en" ${r.enabled?'checked':''} aria-label="${esc(T('Show'))} ${esc(r.name)}"></label>
       <div class="grow"><div class="name">${esc(r.name)}</div>
         <div class="state ${tone(r.state)}">${esc(T(r.state))}${r.has_usage?'':esc(T(' · no quota to read'))}</div>
-        ${r.note?`<div class="note" title="${esc(r.note)}">${esc(r.note)}</div>`:''}</div>
+        ${r.note?`<div class="note" title="${esc(localNote(r.note,r.note_parts,LANG))}">${esc(localNote(r.note,r.note_parts,LANG))}</div>`:''}</div>
+
       <button class="icon up" ${i===0?'disabled':''} aria-label="${esc(T('Move up'))}">▲</button>
       <button class="icon down" ${i===n-1?'disabled':''} aria-label="${esc(T('Move down'))}">▼</button>
     </div>`).join('');

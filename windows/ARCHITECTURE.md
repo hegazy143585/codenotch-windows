@@ -8,7 +8,7 @@
 | Usage providers | `usage.rs` (Claude API), `claude_desktop.rs`, `claude_refresh.rs`, `codex.rs`, `cursor.rs`, `antigravity.rs` | Each runs its own thread and writes only its own slot |
 | Activity engine | `activity.rs`, `watcher.rs`, `state.rs`, `focus.rs` | 2 s tick: pushed events + per-provider probes (Cursor SQLite, Codex rollout files, Claude IO sampling, Antigravity writes) |
 | Event ingress | `server.rs` + `codenotch-hook/` | `127.0.0.1:48666` HTTP. `codenotch-hook.exe <event> [--provider id]` POSTs events; `GET /activity` returns the merged list |
-| UI | `ui/notch.html` | Single-file pill + hover card, no framework |
+| UI | `ui/notch.html`, `ui/notes.js` | Pill + hover card, no framework; `notes.js` is the provider-note dictionary shared with settings |
 | Settings | `settings.rs`, `ui/settings.html` | Provider on/off + order (config `disabled` / `provider_order`, applied by `providers::arrange`), Ollama key in Credential Manager, Perplexity connect, hooks, language, hover-only, autostart; opens with a welcome on first launch |
 | Diagnostics | `doctor.rs`, `diag.rs` | `codenotch.exe doctor` CLI self-check |
 | Config | `config.rs` | `%APPDATA%\codenotch\config.json` (secrets never go here: Credential Manager) |
@@ -56,5 +56,5 @@ HTTP adapters with a borrowed credential use `remote.rs` (poll loop, persisted 4
 rules) and supply only `fetch`; they register as a `providers::Simple` entry.
 A provider with usage needs one module (`load_persisted` / `start` / `request_refresh`, writing its slot
 and calling `providers::publish`), one `Provider` impl in `providers.rs`, and one line in `REGISTRY`.
-Notes go through `set_note`; a new sentence needs a code in `notes::EN` plus its `en` and `ar` entries in the
-card's `STR` (the i18n tests fail otherwise). No other UI change. A provider with activity only needs no code: it pushes events through the hook.
+Notes go through `set_note`; a new sentence needs a code in `notes::EN` plus its `en` and `ar` entries in
+`ui/notes.js`, which the card and the settings window share (the i18n tests fail otherwise). No other UI change. A provider with activity only needs no code: it pushes events through the hook.

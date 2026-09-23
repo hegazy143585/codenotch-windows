@@ -133,13 +133,14 @@ mod tests {
 
 
     const PAGE: &str = include_str!("../ui/notch.html");
+    const NOTES_JS: &str = include_str!("../ui/notes.js");
+    const SETTINGS: &str = include_str!("../ui/settings.html");
 
-    /// One language block of the page's `STR` dictionary
-    fn block(lang: &str) -> String {
-        let html = PAGE;
-        let start = html.find("const STR={").expect("dictionary");
-        let body = &html[start..start + html[start..].find("\n};").expect("end")];
-        let a = body.find(&format!("\n  {lang}:{{")).unwrap_or_else(|| panic!("{lang} missing"));
+    /// One language block of a `const NAME={ xx:{…}, … };` dictionary
+    fn block_of(src: &str, name: &str, lang: &str) -> String {
+        let start = src.find(&format!("const {name}={{")).unwrap_or_else(|| panic!("{name} missing"));
+        let body = &src[start..start + src[start..].find("\n};").expect("end")];
+        let a = body.find(&format!("\n  {lang}:{{")).unwrap_or_else(|| panic!("{name}.{lang} missing"));
         let rest = &body[a + 3..];
         let b = rest.find("\n  ").map(|i| {
             // the next language header starts a line with two spaces and `xx:{`
@@ -154,6 +155,10 @@ mod tests {
             rest.len()
         });
         rest[..b.unwrap_or(rest.len())].to_string()
+    }
+
+    fn block(lang: &str) -> String {
+        block_of(PAGE, "STR", lang)
     }
 
     /// The text of `key` in a language block (`key:'…'`)
@@ -173,33 +178,23 @@ mod tests {
         None
     }
 
-    /// Provider-note keys (W-23) are `n` + an upper-case letter; the rest are card strings
-    fn is_note_key(k: &str) -> bool {
-        k.len() > 1 && k.starts_with('n') && k.as_bytes()[1].is_ascii_uppercase()
-    }
-
-    /// Arabic has every card string and every note (owner priority: Arabic + English). zh/ja/ko keep
-    /// every card string but may leave provider notes to the English fallback; no language defines a
-    /// key English lacks (W-13, W-23).
+    /// Every card string exists in every language the tray offers (W-13)
     #[test]
     fn the_page_dictionary_is_complete_in_every_language() {
         let en = keys(&block("en"));
         assert!(en.len() > 20, "{en:?}");
-        assert_eq!(keys(&block("ar")), en, "ar does not define the same strings as en");
-        let card: std::collections::BTreeSet<String> = en.iter().filter(|k| !is_note_key(k)).cloned().collect();
-        for l in ["zh", "ja", "ko"] {
-            let have = keys(&block(l));
-            assert!(have.is_subset(&en), "{l} defines keys en lacks: {:?}", have.difference(&en).collect::<Vec<_>>());
-            assert!(card.is_subset(&have), "{l} misses card strings: {:?}", card.difference(&have).collect::<Vec<_>>());
+        for l in ["ar", "zh", "ja", "ko"] {
+            assert_eq!(keys(&block(l)), en, "{l} does not define the same strings as en");
         }
     }
 
-    /// Every note code Rust can emit is in the page: English identical to the Rust template (the
-    /// page checks its English rendering against `note` before translating), Arabic its own text
-    /// with the same placeholders. And the page has no note key Rust does not know.
+    /// Provider notes (W-23): every code Rust can emit is in notes.js with the English text equal to
+    /// the Rust template (the pages check their English rendering against `note` before translating)
+    /// and its own Arabic with the same placeholders; notes.js has no code Rust does not know.
+    /// zh/ja/ko are not required: they fall back to English.
     #[test]
     fn every_note_code_is_translated_and_matches_the_rust_template() {
-        let (en, ar) = (block("en"), block("ar"));
+        let (en, ar) = (block_of(NOTES_JS, "NOTE_STR", "en"), block_of(NOTES_JS, "NOTE_STR", "ar"));
         for (code, tpl) in crate::notes::EN {
             assert_eq!(value(&en, code).as_deref(), Some(*tpl), "en text of {code}");
             let a = value(&ar, code).unwrap_or_else(|| panic!("{code} has no Arabic"));
@@ -209,8 +204,23 @@ mod tests {
                 assert_eq!(tpl.contains(&ph), a.contains(&ph), "{code}: placeholder {ph} differs in Arabic");
             }
         }
-        for k in keys(&en).into_iter().filter(|k| is_note_key(k)) {
-            assert!(crate::notes::EN.iter().any(|(c, _)| *c == k), "page note {k} is not a Rust note code");
+        let known: std::collections::BTreeSet<String> = crate::notes::EN.iter().map(|(c, _)| c.to_string()).collect();
+        assert_eq!(keys(&en), known, "notes.js en and src/notes.rs define different codes");
+        assert_eq!(keys(&ar), known, "notes.js ar and src/notes.rs define different codes");
+    }
+
+    /// Both pages load the shared note dictionary and translate notes with it (W-23, W-26); the
+    /// card merges it into STR, and the note codes never collide with a card string
+    #[test]
+    fn both_pages_translate_notes_with_the_shared_dictionary() {
+        for (name, page) in [("notch.html", PAGE), ("settings.html", SETTINGS)] {
+            assert!(page.contains("<script src=\"notes.js\"></script>"), "{name} does not load notes.js");
+            assert!(page.contains("localNote("), "{name} does not translate notes");
+        }
+        assert!(PAGE.contains("for(const l in NOTE_STR) STR[l]="), "the card does not merge the notes into STR");
+        let card = keys(&block("en"));
+        for (code, _) in crate::notes::EN {
+            assert!(!card.contains(*code), "{code} collides with a card string");
         }
     }
 

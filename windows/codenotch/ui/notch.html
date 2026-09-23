@@ -117,6 +117,7 @@
   <div id="notice"></div>
   <div id="alert"></div>
 </div>
+<script src="notes.js"></script>
 <script>
 const invoke = window.__TAURI__.core.invoke;
 const listen = window.__TAURI__.event.listen;
@@ -173,20 +174,7 @@ const STR={
     justNow:'just now',mAgo:'{n}m ago',hAgo:'{n}h ago',dAgo:'{n}d ago',
     tokens:'~{n} tokens',left:'{n} left',reqs:'{n} requests',req1:'1 request',reqToday:'~{n} requests today',req1Today:'~1 request today',noReqToday:'no requests today',
     actHooks:'Activity: live from Claude Code hooks',actEvent:'Activity: live, reported by the tool',
-    actClaudeEst:'Activity: estimated — install Claude Code hooks from the tray for exact state',actEst:'Activity: estimated from local files, may lag',actNone:'Activity: not supported for this tool',
-    /* Provider notes (W-23): the codes of src/notes.rs; en must equal its templates */
-    nRateLimited:'Rate limited — retrying in {0}s',nOffline:'Offline — {0}',nLiveFailed:'Live read failed ({0})',nVia:'via {0}',
-    nNoWindows:'{0} reported no usage windows',nNothingMetered:'{0} has nothing metered on this account yet',nUnlimitedQuotas:'{0} reported no metered quotas (unlimited)',nCredRefreshed:'Credential refreshed — fetching',
-    nClaudeNoCred:'No Claude Code credential found',nClaudeExpired:'Credential expired — run any claude command (or chat with Claude) to refresh it',nClaudeExpiredLimited:'Credential expired — run any claude command (or chat with Claude) to refresh it; the old token is rate-limited until then',nClaudeRejected:'Credential rejected (switched accounts?)',
-    nViaDesktop:'Live via Claude Desktop (it samples every 15 min)',nCodexExpired:'Codex sign-in expired — open Codex once to refresh it',nCodexRejected:'Codex rejected its sign-in — sign in to Codex again',nFromLastRun:'from last Codex run',
-    nCodexNoSnapshot:'Codex has not recorded a usage snapshot yet',nCursorSignIn:'Sign in to Cursor (the editor) to see usage.',nCursorRejected:'Cursor session was rejected — sign in again in the editor',nCursorUnlimited:'Unlimited on the {0} plan — nothing to meter',
-    nCursorNothing:'The {0} plan has nothing for Cursor to meter yet',nCursorUnlimitedAny:'Unlimited plan — nothing to meter',nCursorNothingAny:'This plan has nothing for Cursor to meter yet',nAgClosed:'Antigravity is closed — last reading kept',
-    nAgRejected:'Antigravity’s Google session was rejected — sign in again in Antigravity',nAgNoQuota:'Google publishes no quota for this account',nAgOpen:'Open Antigravity to read its quota',nGeminiCalls:'{0} calls this month',
-    nPerToken:'billed per token, no limit',nLocalLogs:'counted from local logs; your API key is never read',nOllamaLoaded:'Loaded: {0}',nOllamaNoModel:'Server running · no model loaded',
-    nLocalNoQuota:'local server, no quota',nOllamaDown:'Ollama server not running — open Ollama to see loaded models',nOllamaNoUsage:'No Ollama cloud usage recorded yet for this period',nNoResetDate:'the API publishes no reset date',
-    nOllamaKeyRejected:'Ollama rejected the API key — create a new one at ollama.com/settings/keys',nCmdRejected:'Command Code rejected the key — sign in again in the Command Code app',nGhRejected:'GitHub rejected the token — run `gh auth login` and make sure Copilot is enabled',nZaiRejected:'Z.ai rejected the plan key — sign in again in the tool that holds it',
-    nGrokExpired:'Grok sign-in expired — run `grok login` to refresh it',nGrokRejected:'Grok rejected the sign-in — run `grok login`',nOpencodeNoSub:'No OpenCode Go subscription on this key',nOpencodeRejected:'OpenCode rejected the Go key — run `opencode auth login` again',
-    nPplxCounts:'counts left; no totals or reset times are published',nPplxSignIn:'Sign in, or pass Perplexity’s check: click the Perplexity cell'},
+    actClaudeEst:'Activity: estimated — install Claude Code hooks from the tray for exact state',actEst:'Activity: estimated from local files, may lag',actNone:'Activity: not supported for this tool'},
   ar:{usageOf:'استخدام {name}',signIn:'سجّل الدخول إلى {who} لرؤية الاستخدام.',waiting:'في انتظار أول قراءة…',
     reset:'أُعيد الضبط',windowReset:'أُعيد ضبط الفترة — في انتظار قراءة جديدة',used:'مُستخدم {p}%',
     resetting:'يُعاد الضبط…',resetsIn:'يُعاد الضبط بعد {m} دقيقة',resetsAt:'يُعاد الضبط الساعة {t}',resetsOn:'يُعاد الضبط {d} {t}',
@@ -194,20 +182,7 @@ const STR={
     justNow:'الآن',mAgo:'قبل {n} د',hAgo:'قبل {n} س',dAgo:'قبل {n} يوم',
     tokens:'~{n} رمز',left:'متبقٍ {n}',reqs:'{n} طلب',req1:'طلب واحد',reqToday:'~{n} طلب اليوم',req1Today:'~طلب واحد اليوم',noReqToday:'لا طلبات اليوم',
     actHooks:'النشاط: مباشر من روابط Claude Code',actEvent:'النشاط: مباشر، تُبلغ عنه الأداة',
-    actClaudeEst:'النشاط: تقديري — ثبّت روابط Claude Code من الدرج لحالة دقيقة',actEst:'النشاط: تقديري من الملفات المحلية، وقد يتأخر',actNone:'النشاط: غير مدعوم لهذه الأداة',
-    /* Provider notes (W-23): the codes of src/notes.rs; en must equal its templates */
-    nRateLimited:'تم تجاوز حد الطلبات — إعادة المحاولة بعد {0} ث',nOffline:'غير متصل — {0}',nLiveFailed:'تعذّرت القراءة المباشرة ({0})',nVia:'عبر {0}',
-    nNoWindows:'لم يُبلغ {0} عن فترات استخدام',nNothingMetered:'لا شيء يُقاس في {0} على هذا الحساب بعد',nUnlimitedQuotas:'لم يُبلغ {0} عن حصص مقيسة (غير محدود)',nCredRefreshed:'تم تحديث بيانات الاعتماد — جارٍ الجلب',
-    nClaudeNoCred:'لم يُعثر على بيانات اعتماد Claude Code',nClaudeExpired:'انتهت صلاحية بيانات الاعتماد — شغّل أي أمر claude (أو تحدّث مع Claude) لتحديثها',nClaudeExpiredLimited:'انتهت صلاحية بيانات الاعتماد — شغّل أي أمر claude (أو تحدّث مع Claude) لتحديثها؛ الرمز القديم مقيّد بحد الطلبات حتى ذلك الحين',nClaudeRejected:'رُفضت بيانات الاعتماد (هل بدّلت الحساب؟)',
-    nViaDesktop:'مباشر عبر Claude Desktop (يأخذ قراءة كل 15 دقيقة)',nCodexExpired:'انتهت صلاحية تسجيل الدخول إلى Codex — افتح Codex مرة لتحديثه',nCodexRejected:'رفض Codex تسجيل الدخول — سجّل الدخول إلى Codex مجددًا',nFromLastRun:'من آخر تشغيل لـ Codex',
-    nCodexNoSnapshot:'لم يسجّل Codex لقطة استخدام بعد',nCursorSignIn:'سجّل الدخول إلى Cursor (المحرر) لرؤية الاستخدام.',nCursorRejected:'رُفضت جلسة Cursor — سجّل الدخول مجددًا في المحرر',nCursorUnlimited:'خطة {0} غير محدودة — لا شيء يُقاس',
-    nCursorNothing:'لا يوجد في خطة {0} ما يقيسه Cursor بعد',nCursorUnlimitedAny:'خطة غير محدودة — لا شيء يُقاس',nCursorNothingAny:'لا يوجد في هذه الخطة ما يقيسه Cursor بعد',nAgClosed:'Antigravity مغلق — أُبقيت آخر قراءة',
-    nAgRejected:'رُفضت جلسة Google في Antigravity — سجّل الدخول مجددًا في Antigravity',nAgNoQuota:'لا تنشر Google حصة لهذا الحساب',nAgOpen:'افتح Antigravity لقراءة حصته',nGeminiCalls:'{0} طلب هذا الشهر',
-    nPerToken:'يُحتسب لكل رمز، بلا حد',nLocalLogs:'محسوب من السجلات المحلية؛ لا يُقرأ مفتاح API الخاص بك أبدًا',nOllamaLoaded:'محمّل: {0}',nOllamaNoModel:'الخادم يعمل · لا يوجد نموذج محمّل',
-    nLocalNoQuota:'خادم محلي، بلا حصة',nOllamaDown:'خادم Ollama لا يعمل — افتح Ollama لرؤية النماذج المحمّلة',nOllamaNoUsage:'لا يوجد استخدام سحابي مسجّل في Ollama لهذه الفترة بعد',nNoResetDate:'لا تنشر الواجهة البرمجية موعد إعادة الضبط',
-    nOllamaKeyRejected:'رفض Ollama مفتاح API — أنشئ مفتاحًا جديدًا من ollama.com/settings/keys',nCmdRejected:'رفض Command Code المفتاح — سجّل الدخول مجددًا في تطبيق Command Code',nGhRejected:'رفض GitHub الرمز — شغّل `gh auth login` وتأكد من تفعيل Copilot',nZaiRejected:'رفض Z.ai مفتاح الخطة — سجّل الدخول مجددًا في الأداة التي تحمله',
-    nGrokExpired:'انتهت صلاحية تسجيل الدخول إلى Grok — شغّل `grok login` لتحديثه',nGrokRejected:'رفض Grok تسجيل الدخول — شغّل `grok login`',nOpencodeNoSub:'لا يوجد اشتراك OpenCode Go على هذا المفتاح',nOpencodeRejected:'رفض OpenCode مفتاح Go — شغّل `opencode auth login` مجددًا',
-    nPplxCounts:'الأعداد المتبقية؛ لا تُنشر المجاميع ولا مواعيد إعادة الضبط',nPplxSignIn:'سجّل الدخول، أو اجتز فحص Perplexity: انقر خلية Perplexity'},
+    actClaudeEst:'النشاط: تقديري — ثبّت روابط Claude Code من الدرج لحالة دقيقة',actEst:'النشاط: تقديري من الملفات المحلية، وقد يتأخر',actNone:'النشاط: غير مدعوم لهذه الأداة'},
   zh:{usageOf:'{name} 用量',signIn:'登录 {who} 后即可查看用量。',waiting:'正在等待首次读取…',
     reset:'已重置',windowReset:'窗口已重置 — 等待新的读数',used:'已用 {p}%',
     resetting:'正在重置…',resetsIn:'{m} 分钟后重置',resetsAt:'{t} 重置',resetsOn:'{d} {t} 重置',
@@ -233,6 +208,7 @@ const STR={
     actHooks:'활동: Claude Code 후크의 실시간 상태',actEvent:'활동: 도구가 실시간 보고',
     actClaudeEst:'활동: 추정 — 정확한 상태는 트레이에서 Claude Code 후크 설치',actEst:'활동: 로컬 파일 기반 추정(지연될 수 있음)',actNone:'활동: 이 도구는 지원하지 않음'},
 };
+for(const l in NOTE_STR) STR[l]=Object.assign({},NOTE_STR[l],STR[l]); // notes.js: provider-note codes
 /* Window labels come from the providers in English; the common ones are translated here */
 const LABELS={
   ar:{'Current session':'الجلسة الحالية','Weekly (all models)':'أسبوعي (كل النماذج)','Weekly (Opus)':'أسبوعي (Opus)','Weekly':'أسبوعي','Weekly limit':'الحد الأسبوعي','Monthly limit':'الحد الشهري','5h limit':'حد 5 ساعات','Tokens this month':'الرموز هذا الشهر','Tokens today':'الرموز اليوم','Included usage':'الاستخدام المشمول','On demand':'عند الطلب','Premium requests':'الطلبات المميزة','Pro searches':'عمليات بحث Pro',
@@ -260,26 +236,9 @@ function label(s){
   for(const [re,fn] of (LABEL_RULES[l]||[])){ const m=s.match(re); if(m) return fn(m); }
   return s;
 }
-/* W-23: a provider note arrives as parts [{code,args}] plus its English rendering `note`. Codes are
-   translated with STR (zh/ja/ko fall back to English); `text` parts are names shown as they are.
-   The page uses the parts only when their English rendering equals `note` (same templates as
-   src/notes.rs), so a note set any other way, or an unknown code, still shows the English text. */
-function fillArgs(s,args){ return s.replace(/\{(\d+)\}/g,(_,i)=>(args||[])[+i]??''); }
-function partText(pt,l){
-  if(pt.code==='text') return (pt.args||[])[0]||'';
-  const tpl=(STR[l]&&STR[l][pt.code])??STR.en[pt.code];
-  return tpl==null?null:fillArgs(tpl,pt.args);
-}
-function joinParts(parts,l){
-  const out=[];
-  for(const pt of parts){ const s=partText(pt,l); if(s==null) return null; if(s) out.push(s); }
-  return out.join(' · ');
-}
-function noteText(snap){
-  const parts=snap.note_parts;
-  if(!parts||!parts.length||joinParts(parts,'en')!==snap.note) return snap.note||'';
-  return joinParts(parts,lang());
-}
+/* W-23: a provider note arrives as parts [{code,args}] plus its English rendering `note`. The codes
+   are translated with STR, which holds the shared note dictionary (notes.js) merged in below. */
+function noteText(snap){ return localNote(snap.note,snap.note_parts,lang(),STR); }
 // W-12: Rust decides freshness per provider (live / stale / offline / error / needs_auth / no_data)
 function dimmed(p){ return p.freshness==='stale'||p.freshness==='offline'||p.freshness==='error'; }
 function freshnessLine(p){
