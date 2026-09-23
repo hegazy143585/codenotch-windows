@@ -59,6 +59,10 @@ pub struct LimitWindow {
     pub used: f64,
     /// Reset time, ms epoch (None = unknown)
     pub resets_at: Option<u64>,
+    /// The reset time has passed since this reading was taken: the percentage belongs to a window that
+    /// is over (set by providers::list, never by a provider)
+    #[serde(default)]
+    pub expired: bool,
     /// Pure count window (no published denominator, e.g. Antigravity's requests today) — the cell shows ~N and the ring draws only its track
     #[serde(default)]
     pub count: Option<i64>,
@@ -84,6 +88,15 @@ pub struct UsageSnapshot {
     /// Desktop's own 15-minute samples). The page uses it to judge staleness by the source's cadence.
     #[serde(default)]
     pub source: String,
+    /// The last attempt failed to reach the network (DNS / connect / socket), as opposed to the
+    /// service answering with an error. Lets the card say "offline" instead of "error".
+    #[serde(default)]
+    pub offline: bool,
+}
+
+/// A transport failure that means "no network", not "the service refused"
+pub fn is_offline(e: &ureq::Error) -> bool {
+    matches!(e, ureq::Error::Transport(t) if matches!(t.kind(), ureq::ErrorKind::Dns | ureq::ErrorKind::ConnectionFailed | ureq::ErrorKind::Io))
 }
 
 /// Whether the snapshot currently holds a Claude Desktop sample recent enough to show as live. The
@@ -273,6 +286,7 @@ fn parse_response(v: &serde_json::Value) -> Vec<LimitWindow> {
 enum FetchErr {
     NeedsAuth,
     RateLimited(u64), // suggested wait in seconds (the Retry-After before the floor is applied)
+    Offline(String),
     Other(String),
 }
 
@@ -312,6 +326,7 @@ fn fetch_once(token: &str) -> Result<Vec<LimitWindow>, FetchErr> {
             Err(FetchErr::RateLimited(ra))
         }
         Err(ureq::Error::Status(code, _)) => Err(FetchErr::Other(format!("HTTP {code}"))),
+        Err(e) if is_offline(&e) => Err(FetchErr::Offline(format!("{e}"))),
         Err(e) => Err(FetchErr::Other(format!("{e}"))),
     }
 }
@@ -404,6 +419,7 @@ pub fn start(app: AppHandle) {
                                 u.fetched_at = now_ms();
                                 u.source = "api".into();
                                 u.note.clear();
+                                u.offline = false;
                                 u.backoff_until = 0;
                                 u.limited_sig.clear();
                             });
@@ -437,7 +453,15 @@ pub fn start(app: AppHandle) {
                                 u.limited_sig = sig;
                             });
                         }
+                        Err(FetchErr::Offline(msg)) => set_and_broadcast(&app, |u| {
+                            if !desktop_live(u) {
+                                u.status = if u.windows.is_empty() { "error" } else { "stale" }.into();
+                                u.offline = true;
+                                u.note = format!("Offline — {msg}");
+                            }
+                        }),
                         Err(FetchErr::Other(msg)) => set_and_broadcast(&app, |u| {
+                            u.offline = false;
                             if !desktop_live(u) {
                                 if u.windows.is_empty() {
                                     u.status = "error".into();

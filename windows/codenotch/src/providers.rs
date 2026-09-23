@@ -31,6 +31,11 @@ pub trait Provider: Sync {
         let _ = hooks_installed;
         ActivitySupport::Inferred
     }
+    /// How old a reading may be before it counts as stale: about two missed polls of its source
+    fn fresh_ms(&self, u: &UsageSnapshot) -> u64 {
+        let _ = u;
+        DEFAULT_FRESH_MS
+    }
     fn load_persisted(&self) -> UsageSnapshot;
     fn start(&self, app: AppHandle);
     fn request_refresh(&self);
@@ -50,6 +55,10 @@ impl Provider for Claude {
     /// Hooks report every state change; without them the transcript watcher and IO sampling guess
     fn activity(&self, hooks_installed: bool) -> ActivitySupport {
         if hooks_installed { ActivitySupport::Event } else { ActivitySupport::Inferred }
+    }
+    /// Claude Desktop samples every 15 min, so its readings stay current for longer
+    fn fresh_ms(&self, u: &UsageSnapshot) -> u64 {
+        if u.source == "desktop" { crate::claude_desktop::FRESH_MS } else { DEFAULT_FRESH_MS }
     }
     fn load_persisted(&self) -> UsageSnapshot { crate::usage::load_persisted() }
     fn start(&self, app: AppHandle) {
@@ -90,6 +99,9 @@ impl Provider for Antigravity {
     fn start(&self, app: AppHandle) { crate::antigravity::start(app) }
     fn request_refresh(&self) { crate::antigravity::request_refresh() }
 }
+
+/// The API pollers read every 5 min while idle; two missed polls plus slack
+const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
 pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity];
@@ -146,12 +158,61 @@ pub struct Capabilities {
     pub activity: ActivitySupport,
 }
 
+/// Whether the numbers on screen are current (W-12). Decided here, per provider, instead of by
+/// fixed windows in the page.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Freshness {
+    /// Read successfully within the source's fresh window
+    Live,
+    /// Older than that, or the last refresh failed for a reason other than the network
+    Stale,
+    /// The last refresh could not reach the network; the reading shown is the last one that did
+    Offline,
+    /// Refresh failed and there is no reading at all
+    Error,
+    NeedsAuth,
+    /// Nothing to show yet (not read, or nothing metered)
+    NoData,
+}
+
+pub fn freshness(u: &UsageSnapshot, now: u64, fresh_ms: u64) -> Freshness {
+    if u.status == "needsAuth" {
+        return Freshness::NeedsAuth;
+    }
+    if u.windows.is_empty() {
+        return if u.offline {
+            Freshness::Offline
+        } else if u.status == "error" {
+            Freshness::Error
+        } else {
+            Freshness::NoData
+        };
+    }
+    if u.status == "ok" && u.fetched_at > 0 && now.saturating_sub(u.fetched_at) <= fresh_ms {
+        return Freshness::Live;
+    }
+    if u.offline { Freshness::Offline } else { Freshness::Stale }
+}
+
+/// Windows whose reset time passed after the reading was taken: the percentage is from a window
+/// that is over, so the page must not show it as current usage.
+fn mark_expired(u: &mut UsageSnapshot, now: u64) {
+    let fetched = u.fetched_at;
+    for w in &mut u.windows {
+        w.expired = matches!(w.resets_at, Some(r) if r <= now && fetched < r);
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ProviderSnapshot {
     pub id: String,
     pub name: String,
     pub glyph: String,
     pub capabilities: Capabilities,
+    pub freshness: Freshness,
+    /// ms since the reading was taken (0 = never read)
+    pub age_ms: u64,
     pub usage: UsageSnapshot,
 }
 
@@ -165,10 +226,11 @@ fn title_case(id: &str) -> String {
 
 /// The cells the notch shows, in order: registered providers that are installed (or always shown),
 /// then any provider that only reports activity through the event ingress.
-pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool) -> Vec<ProviderSnapshot> {
+pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool, now: u64) -> Vec<ProviderSnapshot> {
     let mut out: Vec<ProviderSnapshot> = Vec::new();
     for p in REGISTRY {
-        let usage = slots.read(p.id());
+        let mut usage = slots.read(p.id());
+        mark_expired(&mut usage, now);
         // A pushed event proves the tool is there even when detection missed it
         let pushed = activity.iter().any(|a| a.provider == p.id());
         if !p.always_shown() && usage.status == "absent" && !pushed {
@@ -183,6 +245,8 @@ pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool) -> Vec<
                 usage: true,
                 activity: if pushed_by_event(activity, p.id()) { ActivitySupport::Event } else { p.activity(hooks_installed) },
             },
+            freshness: freshness(&usage, now, p.fresh_ms(&usage)),
+            age_ms: if usage.fetched_at > 0 { now.saturating_sub(usage.fetched_at) } else { 0 },
             usage,
         });
     }
@@ -196,6 +260,8 @@ pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool) -> Vec<
             name: title_case(&a.provider),
             glyph: a.provider.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".into()),
             capabilities: Capabilities { usage: false, activity: ActivitySupport::Event },
+            freshness: Freshness::NoData,
+            age_ms: 0,
             usage: UsageSnapshot { status: "none".into(), ..Default::default() },
         });
     }
@@ -205,7 +271,7 @@ pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool) -> Vec<
 pub fn current(app: &AppHandle) -> Vec<ProviderSnapshot> {
     let st = app.state::<AppState>();
     let activity = st.activity.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    list(&st.usage, &activity, crate::hooks_install::is_installed())
+    list(&st.usage, &activity, crate::hooks_install::is_installed(), crate::usage::now_ms())
 }
 
 /// Rows that came through the event ingress (probe rows are tagged by `activity::is_pushed`)
@@ -230,6 +296,36 @@ pub fn refresh_all() {
     }
 }
 
+const CLOCK_TICK_SECS: u64 = 15;
+const REPUBLISH_EVERY_TICKS: u32 = 2;
+
+/// The wall clock moved much further than the thread slept: the machine was asleep (or hibernated)
+pub(crate) fn resumed(before_ms: u64, after_ms: u64, slept_ms: u64) -> bool {
+    after_ms.saturating_sub(before_ms) > slept_ms + 60_000
+}
+
+/// Freshness moves with time, not only with new readings: republish every 30 s so "live" turns
+/// "stale" on schedule. After sleep, every provider is refreshed at once instead of at its next poll.
+pub fn start_clock(app: AppHandle) {
+    std::thread::spawn(move || {
+        let mut tick: u32 = 0;
+        loop {
+            let before = crate::usage::now_ms();
+            std::thread::sleep(std::time::Duration::from_secs(CLOCK_TICK_SECS));
+            let after = crate::usage::now_ms();
+            if resumed(before, after, CLOCK_TICK_SECS * 1000) {
+                crate::applog(&format!("resume detected ({} s gap): refreshing every provider", (after - before) / 1000));
+                refresh_all();
+                publish(&app);
+            }
+            tick = tick.wrapping_add(1);
+            if tick % REPUBLISH_EVERY_TICKS == 0 {
+                publish(&app);
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,7 +339,74 @@ mod tests {
     }
 
     fn list3(slots: &Slots, activity: &[Activity]) -> Vec<ProviderSnapshot> {
-        list(slots, activity, false)
+        list(slots, activity, false, NOW)
+    }
+
+    const NOW: u64 = 1_800_000_000_000;
+    const MIN: u64 = 60_000;
+
+    fn reading(status: &str, age_min: u64) -> UsageSnapshot {
+        UsageSnapshot {
+            status: status.into(),
+            fetched_at: NOW - age_min * MIN,
+            windows: vec![crate::usage::LimitWindow { id: "w".into(), used: 0.5, resets_at: Some(NOW + 60 * MIN), ..Default::default() }],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn freshness_follows_the_source_window() {
+        assert_eq!(freshness(&reading("ok", 3), NOW, DEFAULT_FRESH_MS), Freshness::Live);
+        assert_eq!(freshness(&reading("ok", 20), NOW, DEFAULT_FRESH_MS), Freshness::Stale);
+        assert_eq!(freshness(&reading("stale", 1), NOW, DEFAULT_FRESH_MS), Freshness::Stale);
+        // Claude Desktop's 15-minute cadence: a 20-minute-old desktop sample is still current
+        let mut d = reading("ok", 20);
+        d.source = "desktop".into();
+        assert_eq!(freshness(&d, NOW, find("claude").unwrap().fresh_ms(&d)), Freshness::Live);
+    }
+
+    #[test]
+    fn offline_error_and_auth_are_told_apart() {
+        let mut off = reading("stale", 30);
+        off.offline = true;
+        assert_eq!(freshness(&off, NOW, DEFAULT_FRESH_MS), Freshness::Offline);
+        let mut off_empty = snap("error");
+        off_empty.offline = true;
+        assert_eq!(freshness(&off_empty, NOW, DEFAULT_FRESH_MS), Freshness::Offline);
+        assert_eq!(freshness(&snap("error"), NOW, DEFAULT_FRESH_MS), Freshness::Error);
+        assert_eq!(freshness(&snap("needsAuth"), NOW, DEFAULT_FRESH_MS), Freshness::NeedsAuth);
+        assert_eq!(freshness(&snap("none"), NOW, DEFAULT_FRESH_MS), Freshness::NoData);
+        // A current local reading (Codex's rollout) is live even if the network call failed
+        let mut local = reading("ok", 2);
+        local.offline = true;
+        assert_eq!(freshness(&local, NOW, DEFAULT_FRESH_MS), Freshness::Live);
+    }
+
+    #[test]
+    fn a_window_that_reset_after_the_reading_is_expired() {
+        let mut u = reading("stale", 120);
+        u.windows[0].resets_at = Some(NOW - 30 * MIN);
+        u.windows.push(crate::usage::LimitWindow { id: "future".into(), resets_at: Some(NOW + MIN), ..Default::default() });
+        let slots = Slots::from(vec![("claude", u)]);
+        let l = list3(&slots, &[]);
+        assert!(l[0].usage.windows[0].expired);
+        assert!(!l[0].usage.windows[1].expired);
+        assert_eq!(l[0].age_ms, 120 * MIN);
+    }
+
+    #[test]
+    fn a_reading_taken_after_the_reset_is_not_expired() {
+        let mut u = reading("ok", 1);
+        u.windows[0].resets_at = Some(NOW - 5 * MIN);
+        let slots = Slots::from(vec![("claude", u)]);
+        assert!(!list3(&slots, &[])[0].usage.windows[0].expired);
+    }
+
+    #[test]
+    fn resume_is_a_wall_clock_jump_past_the_sleep() {
+        assert!(!resumed(0, 15_000, 15_000));
+        assert!(!resumed(0, 70_000, 15_000));
+        assert!(resumed(0, 20 * MIN, 15_000));
     }
 
     fn all(status: &str) -> Slots {
@@ -304,8 +467,8 @@ mod tests {
 
     #[test]
     fn claude_activity_is_event_only_with_hooks() {
-        let without = list(&all("ok"), &[], false);
-        let with = list(&all("ok"), &[], true);
+        let without = list(&all("ok"), &[], false, NOW);
+        let with = list(&all("ok"), &[], true, NOW);
         assert_eq!(without[0].capabilities.activity, ActivitySupport::Inferred);
         assert_eq!(with[0].capabilities.activity, ActivitySupport::Event);
     }
@@ -313,15 +476,15 @@ mod tests {
     #[test]
     fn probed_providers_are_inferred_until_they_push() {
         let probed = Activity { pushed: false, ..act("codex") };
-        let l = list(&all("ok"), &[probed], true);
+        let l = list(&all("ok"), &[probed], true, NOW);
         assert_eq!(caps(&l)[1], ("codex".into(), ActivitySupport::Inferred));
-        let l = list(&all("ok"), &[act("codex")], true);
+        let l = list(&all("ok"), &[act("codex")], true, NOW);
         assert_eq!(caps(&l)[1], ("codex".into(), ActivitySupport::Event));
     }
 
     #[test]
     fn activity_only_providers_are_event_driven() {
-        let l = list(&all("absent"), &[act("copilot")], false);
+        let l = list(&all("absent"), &[act("copilot")], false, NOW);
         assert_eq!(caps(&l)[1], ("copilot".into(), ActivitySupport::Event));
     }
 

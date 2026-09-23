@@ -686,6 +686,7 @@ fn main() {
             std::thread::spawn(autostart::repoint_if_moved); // reg.exe calls: off the UI thread
             watcher::start(handle.clone());
             providers::start_all(&handle);
+            providers::start_clock(handle.clone());
             activity::start(handle.clone());
             // Collecting glyphs may read icon resources out of a few executables; do it off the main thread and push when done
             let gh = handle.clone();

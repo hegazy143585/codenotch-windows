@@ -197,6 +197,7 @@ pub fn parse_summary(v: &serde_json::Value) -> (Vec<LimitWindow>, String) {
 
 enum FetchErr {
     NeedsAuth,
+    Offline(String),
     Other(String),
 }
 
@@ -206,6 +207,7 @@ fn fetch_once(cookie: &str) -> Result<serde_json::Value, FetchErr> {
         Ok(r) => r.into_json::<serde_json::Value>().map_err(|e| FetchErr::Other(format!("parse: {e}"))),
         Err(ureq::Error::Status(401, _)) | Err(ureq::Error::Status(403, _)) => Err(FetchErr::NeedsAuth),
         Err(ureq::Error::Status(code, _)) => Err(FetchErr::Other(format!("HTTP {code}"))),
+        Err(e) if crate::usage::is_offline(&e) => Err(FetchErr::Offline(format!("{e}"))),
         Err(e) => Err(FetchErr::Other(format!("{e}"))),
     }
 }
@@ -220,6 +222,7 @@ fn cap(s: &str) -> String {
 
 fn read_once(prev: &UsageSnapshot) -> UsageSnapshot {
     let mut snap = prev.clone();
+    snap.offline = false;
     let Some(creds) = read_credentials() else {
         snap.status = "needsAuth".into();
         snap.note = "Sign in to Cursor (the editor) to see usage.".into();
@@ -246,6 +249,11 @@ fn read_once(prev: &UsageSnapshot) -> UsageSnapshot {
         Err(FetchErr::NeedsAuth) => {
             snap.status = "needsAuth".into();
             snap.note = "Cursor session was rejected — sign in again in the editor".into();
+        }
+        Err(FetchErr::Offline(msg)) => {
+            snap.status = if snap.windows.is_empty() { "error" } else { "stale" }.into();
+            snap.offline = true;
+            snap.note = format!("Offline — {msg}");
         }
         Err(FetchErr::Other(msg)) => {
             // Stale beats invented: keep the old reading, marked stale

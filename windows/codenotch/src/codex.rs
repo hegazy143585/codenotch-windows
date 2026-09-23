@@ -175,6 +175,7 @@ enum LiveErr {
     NeedsAuth,
     /// Suggested wait in seconds (BACKOFF_MIN_SECS already applied)
     RateLimited(u64),
+    Offline(String),
     Other(String),
 }
 
@@ -206,6 +207,7 @@ fn fetch_usage(cred: &Credential) -> Result<serde_json::Value, LiveErr> {
             Err(LiveErr::RateLimited(ra.max(BACKOFF_MIN_SECS)))
         }
         Err(ureq::Error::Status(code, _)) => Err(LiveErr::Other(format!("HTTP {code}"))),
+        Err(e) if crate::usage::is_offline(&e) => Err(LiveErr::Offline(format!("{e}"))),
         Err(e) => Err(LiveErr::Other(format!("{e}"))),
     }
 }
@@ -417,6 +419,10 @@ fn read_once() -> UsageSnapshot {
                     snap.backoff_until = until;
                     live_note = Some(format!("Rate limited — retrying in {secs}s"));
                     crate::applog(&format!("codex: usage endpoint returned 429, retrying in {secs}s"));
+                }
+                Err(LiveErr::Offline(e)) => {
+                    snap.offline = true;
+                    live_note = Some(format!("Offline ({e})"));
                 }
                 Err(LiveErr::Other(e)) => {
                     crate::applog(&format!("codex: live read failed ({e}), falling back to the rollout"));

@@ -17,6 +17,9 @@ Provider thread → its slot in `AppState.usage` → `providers::publish` → ev
 `Vec<ProviderSnapshot>`: id, name, glyph, capabilities, usage) → `notch.html` renders the list as-is.
 The list holds registered providers that are installed (Claude always), then any tool that only pushed
 activity through `codenotch-hook --provider <id>`. The page fetches the same list with `get_providers`.
+Each entry carries `freshness` (live / stale / offline / error / needs_auth / no_data) and `age_ms`,
+computed in Rust (`providers::freshness`); windows whose reset passed after the reading are `expired`.
+`providers::start_clock` republishes every 30 s and refreshes every provider after sleep/resume.
 
 ## Provider matrix
 | Provider | Usage source | Source type | Activity source | Activity type |

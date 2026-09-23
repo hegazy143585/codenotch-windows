@@ -156,14 +156,22 @@ function providers(){
   return provs.map(p=>({...p,snap:p.usage}));
 }
 function headlineOf(snap){
-  if(!snap.windows.length) return null;
-  const metered=snap.windows.filter(w=>w.count==null);
+  // An expired window (its reset passed after the reading) says nothing about usage now
+  const cur=snap.windows.filter(w=>!w.expired);
+  if(!cur.length) return null;
+  const metered=cur.filter(w=>w.count==null);
   if(metered.length) return metered.reduce((a,b)=> b.used>a.used?b:a);
-  return snap.windows[0];
+  return cur[0];
 }
-// Staleness follows the source's own cadence: the API is polled every 30–300 s, Claude Desktop samples every 15 min
-function freshWindow(snap){ return snap.source==='desktop'?35*60*1000:5*60*1000; }
-function staleOf(snap){ if(snap.status==='stale') return true; return snap.fetched_at>0 && (Date.now()-snap.fetched_at)>freshWindow(snap); }
+// W-12: Rust decides freshness per provider (live / stale / offline / error / needs_auth / no_data)
+function dimmed(p){ return p.freshness==='stale'||p.freshness==='offline'||p.freshness==='error'; }
+function freshnessLine(p){
+  const a=p.age_ms?ago(p.age_ms):'';
+  if(p.freshness==='stale'&&a) return `Updated ${a}`;
+  if(p.freshness==='offline') return a?`Offline — showing the reading from ${a}`:'Offline — no reading yet';
+  if(p.freshness==='error') return 'Could not refresh';
+  return '';
+}
 let stateSnap={sessions:[],agg:'idle'};
 
 function svgArc(r,frac,color,width,extra=''){
@@ -195,12 +203,12 @@ function renderRing(){
       else if(ws==='attention') inner+=`<g class="arc-pulse"><circle cx="28" cy="28" r="19" fill="none" stroke="${AMBER}" stroke-width="2.5"/></g>`;
     }
     svg.innerHTML=inner;
-    if(p.snap.status==='needsAuth'||p.snap.status==='none') pct.textContent='—';
+    if(p.snap.status==='needsAuth'||p.snap.status==='none'||(!h&&p.snap.windows.length)) pct.textContent='—';
     else if(h && h.count!=null) pct.textContent='~'+h.count;
     else if(h) pct.textContent=(h.derived?'~':'')+Math.round(h.used*100)+'%';
     else pct.textContent='…';
     glyph.classList.toggle('dim', !!(h && h.used>=1));
-    wrap.classList.toggle('dim', staleOf(p.snap));
+    wrap.classList.toggle('dim', dimmed(p));
   }
   reportHot(); // a provider appearing or leaving resizes the pill
 }
@@ -216,9 +224,12 @@ function resetCopy(ms){
   return `Resets ${d.toLocaleDateString('en-US',{weekday:'short'})} ${t}`;
 }
 
-function ago(ms){
-  const m=Math.round((Date.now()-ms)/60000);
-  return m<60?`${m}m ago`:`${Math.round(m/60)}h ago`;
+function ago(ageMs){ // age in ms → "5m ago"
+  const m=Math.round(ageMs/60000);
+  if(m<1) return 'just now';
+  if(m<60) return `${m}m ago`;
+  const h=Math.round(m/60);
+  return h<48?`${h}h ago`:`${Math.round(h/24)}d ago`;
 }
 
 // W-08: say where the working/waiting state comes from, so "idle" is never mistaken for "can't tell"
@@ -237,7 +248,8 @@ function renderCard(){
   const snap=p.snap;
   const headIcon=glyphHtml(p,true);
   let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(p.name)} Usage</span></div>`;
-  if(staleOf(snap)&&snap.fetched_at) html+=`<div class="c-sub">Updated ${ago(snap.fetched_at)}</div>`;
+  const fl=freshnessLine(p);
+  if(fl) html+=`<div class="c-sub">${esc(fl)}</div>`;
   if(snap.status==='needsAuth'){
     const who=p.id==='claude'?'Claude Code':p.name;
     html+=`<div class="c-note">Sign in to ${esc(who)} to see usage.<br>${esc(snap.note)}</div>`;
@@ -248,6 +260,11 @@ function renderCard(){
       if(w.count!=null){
         html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(w.label)}</span></div>
           <div class="w-used">${w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today'}</div></div>`;
+        continue;
+      }
+      if(w.expired){
+        html+=`<div class="win"><div class="w-row"><span class="w-label">${esc(w.label)}</span><span class="w-reset">Reset</span></div>
+          <div class="w-track"></div><div class="w-used">Window reset — waiting for a new reading</div></div>`;
         continue;
       }
       html+=`<div class="win">
