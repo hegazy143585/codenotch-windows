@@ -92,6 +92,7 @@ pub fn run() -> String {
     o += &format!("  {}\n", crate::copilot::probe());
     o += &format!("  {}\n", crate::grok::probe());
     o += &format!("  {}\n", crate::commandcode::probe());
+    o += &format!("  {}\n", crate::perplexity::probe());
     o += &format!("\nprovider glyphs:\n{}\n", crate::glyphs::probe());
     o += &format!("\nworking state:\n  {}\n", crate::activity::probe());
 

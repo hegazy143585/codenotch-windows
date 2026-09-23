@@ -24,6 +24,9 @@ pub struct Config {
     /// Show the pill only while the cursor is at the screen edge (it parks off-screen otherwise); tray toggle
     #[serde(default = "default_true")]
     pub hover_only: bool,
+    /// The user connected Perplexity (tray); until then no Perplexity page is ever loaded
+    #[serde(default)]
+    pub perplexity: bool,
 }
 
 fn default_notch_y() -> f64 {
@@ -52,6 +55,7 @@ impl Default for Config {
             drag_enabled: false,
             notch_y: default_notch_y(),
             hover_only: true,
+            perplexity: false,
         }
     }
 }

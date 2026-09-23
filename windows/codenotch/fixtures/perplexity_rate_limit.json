@@ -1,0 +1,21 @@
+{
+  "free_queries": {
+    "available": true,
+    "remaining_detail": {
+      "kind": "exact",
+      "remaining": 10
+    }
+  },
+  "model_specific_limits": {},
+  "remaining_agentic_research": 0,
+  "remaining_labs": 0,
+  "remaining_pro": 2,
+  "remaining_research": 0,
+  "sources": {
+    "source_to_limit": {
+      "github": {
+        "remaining": 5
+      }
+    }
+  }
+}

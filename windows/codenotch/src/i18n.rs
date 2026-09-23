@@ -69,6 +69,14 @@ pub fn tr(lang: &str, key: &str) -> &'static str {
         ("ja", "hover_only") => "ホバー時のみ表示",
         ("ko", "hover_only") => "마우스를 올릴 때만 표시",
         (_, "hover_only") => "Show notch only on hover",
+        ("zh", "pplx_connect") => "连接 Perplexity…",
+        ("ja", "pplx_connect") => "Perplexity に接続…",
+        ("ko", "pplx_connect") => "Perplexity 연결…",
+        (_, "pplx_connect") => "Connect Perplexity…",
+        ("zh", "pplx_disconnect") => "断开 Perplexity",
+        ("ja", "pplx_disconnect") => "Perplexity の接続を解除",
+        ("ko", "pplx_disconnect") => "Perplexity 연결 해제",
+        (_, "pplx_disconnect") => "Disconnect Perplexity",
         _ => "?",
     }
 }

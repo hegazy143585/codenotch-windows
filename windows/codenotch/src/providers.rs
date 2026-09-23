@@ -187,11 +187,18 @@ static COMMANDCODE: Simple = Simple {
     load: crate::commandcode::load_persisted, start: crate::commandcode::start, refresh: crate::commandcode::request_refresh,
 };
 
+/// perplexity.ai's rate-limit endpoint, read inside a Codenotch WebView the user signs into (perplexity.rs)
+static PERPLEXITY: Simple = Simple {
+    id: crate::perplexity::ID, name: "Perplexity", glyph: "P", page_url: "https://www.perplexity.ai/settings/account",
+    has_usage: true, activity: ActivitySupport::NotSupported,
+    load: crate::perplexity::load_persisted, start: crate::perplexity::start, refresh: crate::perplexity::request_refresh,
+};
+
 /// The API pollers read every 5 min while idle; two missed polls plus slack
 const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
-pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &OLLAMA_CLOUD, &GLM, &OPENCODE, &COPILOT, &GROK, &COMMANDCODE];
+pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &OLLAMA_CLOUD, &GLM, &OPENCODE, &COPILOT, &GROK, &COMMANDCODE, &PERPLEXITY];
 
 pub fn find(id: &str) -> Option<&'static dyn Provider> {
     REGISTRY.iter().copied().find(|p| p.id() == id)
@@ -519,12 +526,12 @@ mod tests {
     #[test]
     fn installed_providers_keep_registry_order() {
         let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "ollama-cloud", "glm", "opencode", "copilot", "grok", "commandcode"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "ollama-cloud", "glm", "opencode", "copilot", "grok", "commandcode", "perplexity"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
-        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("ollama-cloud", snap("absent")), ("glm", snap("absent")), ("opencode", snap("absent")), ("copilot", snap("absent")), ("grok", snap("absent")), ("commandcode", snap("absent"))]);
+        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("ollama-cloud", snap("absent")), ("glm", snap("absent")), ("opencode", snap("absent")), ("copilot", snap("absent")), ("grok", snap("absent")), ("commandcode", snap("absent")), ("perplexity", snap("absent"))]);
         let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }

@@ -57,6 +57,11 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     let hover = CheckMenuItemBuilder::with_id("hover", tr(lang, "hover_only"))
         .checked(hover_only)
         .build(app)?;
+    let pplx = if crate::perplexity::is_connected(app) {
+        MenuItemBuilder::with_id("pplx-off", tr(lang, "pplx_disconnect")).build(app)?
+    } else {
+        MenuItemBuilder::with_id("pplx-on", tr(lang, "pplx_connect")).build(app)?
+    };
     let quit = MenuItemBuilder::with_id("quit", tr(lang, "quit")).build(app)?;
     MenuBuilder::new(app)
         .items(&[&install, &uninstall])
@@ -67,6 +72,8 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
         .item(&open_data)
         .item(&hover)
         .item(&auto)
+        .separator()
+        .item(&pplx)
         .separator()
         .item(&quit)
         .build()
@@ -138,6 +145,14 @@ fn handle(app: &AppHandle, id: &str) {
             };
             let _ = app.emit("prefs", serde_json::json!({ "hover_only": v }));
             refresh_menu(app); // refresh the check mark
+        }
+        "pplx-on" => {
+            crate::perplexity::open_signin(app);
+            refresh_menu(app);
+        }
+        "pplx-off" => {
+            crate::perplexity::disconnect(app);
+            refresh_menu(app);
         }
         "quit" => app.exit(0),
         _ if id.starts_with("lang-") => crate::apply_lang(app, &id[5..]),

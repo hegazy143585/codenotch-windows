@@ -204,7 +204,7 @@ function renderRing(){
     }
     svg.innerHTML=inner;
     if(p.snap.status==='needsAuth'||p.snap.status==='none'||(!h&&p.snap.windows.length)||(p.capabilities&&!p.capabilities.usage)) pct.textContent='—';
-    else if(h && h.count!=null) pct.textContent='~'+compact(h.count);
+    else if(h && h.count!=null) pct.textContent=(h.derived?'~':'')+compact(h.count); // exact counts (Perplexity, Copilot) carry no ~
     else if(h) pct.textContent=(h.derived?'~':'')+Math.round(h.used*100)+'%';
     else pct.textContent='…';
     glyph.classList.toggle('dim', !!(h && h.used>=1));

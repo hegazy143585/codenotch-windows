@@ -29,6 +29,7 @@ mod opencode;
 mod copilot;
 mod grok;
 mod commandcode;
+mod perplexity;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -314,9 +315,14 @@ fn open_data_dir() {
     let _ = cmd.spawn();
 }
 
-/// A click on a cell opens that provider's usage page
+/// A click on a cell opens that provider's usage page (Perplexity: its in-app sign-in window,
+/// because that is where its session lives)
 #[tauri::command]
-fn open_provider_page(provider: String) {
+fn open_provider_page(app: AppHandle, provider: String) {
+    if provider == perplexity::ID {
+        perplexity::open_signin(&app);
+        return;
+    }
     // Activity-only providers have no known page: nothing to open
     let Some(url) = providers::find(&provider).map(|p| p.page_url()) else { return };
     let mut cmd = std::process::Command::new("cmd");

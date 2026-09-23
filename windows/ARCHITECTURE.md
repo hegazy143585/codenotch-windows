@@ -36,9 +36,11 @@ computed in Rust (`providers::freshness`); windows whose reset passed after the 
 | GitHub Copilot | `api.github.com/copilot_internal/user` with GH_TOKEN, hosts.yml or `gh auth token` (`copilot.rs`) | Internal API | none unless pushed | — |
 | Grok | `cli-chat-proxy.grok.com/v1/billing?format=credits` with the xAI session in `~/.grok/auth.json` (`grok.rs`) | Private CLI endpoint | none unless pushed | — |
 | Command Code | `api.commandcode.ai/alpha/{whoami,billing/credits,billing/subscriptions,usage/summary}` with COMMAND_CODE_API_KEY or `~/.commandcode/auth.json` (`commandcode.rs`) | Private desktop-app endpoints | none unless pushed | — |
+| Perplexity | `perplexity.ai/rest/rate-limit/all`, fetched inside a Codenotch WebView the user signs into (tray → Connect Perplexity); the result returns via an intercepted, cancelled navigation, so the site gets no IPC (`perplexity.rs`) | Unofficial web endpoint | none unless pushed | — |
 | Any other tool | none | — | `codenotch-hook --provider <id>` | Event (manual wiring) |
 
-The macOS app supports more providers (Perplexity). Gemini API, Ollama (local runtime and cloud), GLM, OpenCode Go, GitHub Copilot, Grok and Command Code are ported (W-07); the others are not yet.
+Every macOS usage provider is now on Windows too (W-07): Gemini API, Ollama (local runtime and cloud), GLM,
+OpenCode Go, GitHub Copilot, Grok, Command Code and Perplexity.
 
 ## Why live activity is inconsistent
 Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity are inferred from file
