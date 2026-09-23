@@ -29,10 +29,11 @@ computed in Rust (`providers::freshness`); windows whose reset passed after the 
 | Cursor | `cursor.com/api/usage-summary` with session from `state.vscdb` | Unofficial API + local SQLite | `state.vscdb` composer state | Inferred (local) |
 | Antigravity | Local language-server bridge → Cloud Code API → turn count | Local unofficial + unofficial API | Recent writes | Inferred |
 | Gemini API | Token counts from Gemini CLI chats, OpenCode and Hermes SQLite logs (`gemini_api.rs`); no network, key never read | Local files | none (`not_supported`) unless pushed | — |
+| Ollama (local) | `GET /api/ps` on the loopback Ollama server (`ollama_local.rs`); loaded models, no quota (`capabilities.usage = false`) | Official local API | none (`not_supported`) unless pushed | — |
 | Any other tool | none | — | `codenotch-hook --provider <id>` | Event (manual wiring) |
 
-The macOS app supports more providers (GLM, Ollama, Grok, OpenCode, Command Code, GitHub Copilot,
-Perplexity). Gemini API is ported (W-07); the others are not yet.
+The macOS app supports more providers (GLM, Ollama cloud, Grok, OpenCode, Command Code, GitHub Copilot,
+Perplexity). Gemini API and Ollama (local runtime) are ported (W-07); the others are not yet.
 
 ## Why live activity is inconsistent
 Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity are inferred from file

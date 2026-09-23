@@ -1,0 +1,27 @@
+{
+  "models": [
+    {
+      "name": "qwen2.5-coder:7b",
+      "model": "qwen2.5-coder:7b",
+      "size": 6000000000,
+      "size_vram": 3000000000,
+      "expires_at": "2026-09-23T20:05:00.123456+02:00",
+      "details": {
+        "format": "gguf",
+        "family": "qwen2"
+      }
+    },
+    {
+      "name": "llama3.2:3b",
+      "model": "llama3.2:3b",
+      "size": 3400000000,
+      "size_vram": 3400000000,
+      "context_length": 4096,
+      "expires_at": "2026-09-23T20:04:00+02:00",
+      "details": {
+        "quantization_level": "Q4_K_M",
+        "parameter_size": "3.2B"
+      }
+    }
+  ]
+}

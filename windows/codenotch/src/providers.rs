@@ -26,6 +26,10 @@ pub trait Provider: Sync {
     fn always_shown(&self) -> bool {
         false
     }
+    /// Has a quota to read (false for a local runtime: the card lists what it runs instead)
+    fn has_usage(&self) -> bool {
+        true
+    }
     /// How this provider's working/waiting state is known when nothing has been pushed for it
     fn activity(&self, hooks_installed: bool) -> ActivitySupport {
         let _ = hooks_installed;
@@ -46,6 +50,7 @@ struct Codex;
 struct Cursor;
 struct Antigravity;
 struct GeminiApi;
+struct OllamaLocal;
 
 impl Provider for Claude {
     fn id(&self) -> &'static str { "claude" }
@@ -114,11 +119,25 @@ impl Provider for GeminiApi {
     fn request_refresh(&self) { crate::gemini_api::request_refresh() }
 }
 
+/// The local Ollama server's loaded models (`/api/ps`, loopback only); no quota (see ollama_local.rs)
+impl Provider for OllamaLocal {
+    fn id(&self) -> &'static str { crate::ollama_local::ID }
+    fn name(&self) -> &'static str { "Ollama" }
+    fn glyph(&self) -> &'static str { "Ol" }
+    fn page_url(&self) -> &'static str { "https://ollama.com/settings" }
+    fn has_usage(&self) -> bool { false }
+    /// A loaded model is not a running request; only a pushed event says it is working
+    fn activity(&self, _hooks_installed: bool) -> ActivitySupport { ActivitySupport::NotSupported }
+    fn load_persisted(&self) -> UsageSnapshot { crate::ollama_local::load_persisted() }
+    fn start(&self, app: AppHandle) { crate::ollama_local::start(app) }
+    fn request_refresh(&self) { crate::ollama_local::request_refresh() }
+}
+
 /// The API pollers read every 5 min while idle; two missed polls plus slack
 const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
-pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GeminiApi];
+pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GeminiApi, &OllamaLocal];
 
 pub fn find(id: &str) -> Option<&'static dyn Provider> {
     REGISTRY.iter().copied().find(|p| p.id() == id)
@@ -256,7 +275,7 @@ pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool, now: u6
             glyph: p.glyph().into(),
             // A pushed row means the tool is wired to the hook right now: that beats any probe
             capabilities: Capabilities {
-                usage: true,
+                usage: p.has_usage(),
                 activity: if pushed_by_event(activity, p.id()) { ActivitySupport::Event } else { p.activity(hooks_installed) },
             },
             freshness: freshness(&usage, now, p.fresh_ms(&usage)),
@@ -446,12 +465,12 @@ mod tests {
     #[test]
     fn installed_providers_keep_registry_order() {
         let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
-        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent"))]);
+        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent"))]);
         let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }
@@ -505,6 +524,14 @@ mod tests {
     #[test]
     fn activity_support_serializes_snake_case() {
         assert_eq!(serde_json::to_string(&ActivitySupport::NotSupported).unwrap(), "\"not_supported\"");
+    }
+
+    #[test]
+    fn a_local_runtime_declares_no_usage() {
+        let l = list3(&all("ok"), &[]);
+        let o = l.iter().find(|p| p.id == "ollama").unwrap();
+        assert!(!o.capabilities.usage);
+        assert_eq!(o.capabilities.activity, ActivitySupport::NotSupported);
     }
 
     #[test]

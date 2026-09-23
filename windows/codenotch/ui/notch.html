@@ -203,7 +203,7 @@ function renderRing(){
       else if(ws==='attention') inner+=`<g class="arc-pulse"><circle cx="28" cy="28" r="19" fill="none" stroke="${AMBER}" stroke-width="2.5"/></g>`;
     }
     svg.innerHTML=inner;
-    if(p.snap.status==='needsAuth'||p.snap.status==='none'||(!h&&p.snap.windows.length)) pct.textContent='—';
+    if(p.snap.status==='needsAuth'||p.snap.status==='none'||(!h&&p.snap.windows.length)||(p.capabilities&&!p.capabilities.usage)) pct.textContent='—';
     else if(h && h.count!=null) pct.textContent='~'+compact(h.count);
     else if(h) pct.textContent=(h.derived?'~':'')+Math.round(h.used*100)+'%';
     else pct.textContent='…';
@@ -252,7 +252,8 @@ function renderCard(){
   const p=providers().find(x=>x.id===hoverId)||providers()[0];
   const snap=p.snap;
   const headIcon=glyphHtml(p,true);
-  let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(p.name)} Usage</span></div>`;
+  const noQuota=p.capabilities&&!p.capabilities.usage;
+  let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(p.name)}${noQuota?'':' Usage'}</span></div>`;
   const fl=freshnessLine(p);
   if(fl) html+=`<div class="c-sub">${esc(fl)}</div>`;
   if(snap.status==='needsAuth'){

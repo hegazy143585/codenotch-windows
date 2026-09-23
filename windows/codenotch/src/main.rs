@@ -21,6 +21,7 @@ mod diag;
 mod watcher;
 mod providers;
 mod gemini_api;
+mod ollama_local;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
