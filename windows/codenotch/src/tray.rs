@@ -23,6 +23,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
+    let settings = MenuItemBuilder::with_id("settings", tr(lang, "settings")).build(app)?;
     let install = MenuItemBuilder::with_id("install", tr(lang, "install")).build(app)?;
     let uninstall = MenuItemBuilder::with_id("uninstall", tr(lang, "uninstall")).build(app)?;
     let l_auto = CheckMenuItemBuilder::with_id("lang-auto", tr(lang, "lang_auto"))
@@ -64,6 +65,8 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     };
     let quit = MenuItemBuilder::with_id("quit", tr(lang, "quit")).build(app)?;
     MenuBuilder::new(app)
+        .item(&settings)
+        .separator()
         .items(&[&install, &uninstall])
         .separator()
         .item(&lang_menu)
@@ -79,7 +82,7 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
         .build()
 }
 
-fn refresh_menu(app: &AppHandle) {
+pub fn refresh_menu(app: &AppHandle) {
     let lang = {
         let st = app.state::<crate::AppState>();
         let c = st.cfg.lock().unwrap();
@@ -154,6 +157,7 @@ fn handle(app: &AppHandle, id: &str) {
             crate::perplexity::disconnect(app);
             refresh_menu(app);
         }
+        "settings" => crate::settings::open(app),
         "quit" => app.exit(0),
         _ if id.starts_with("lang-") => crate::apply_lang(app, &id[5..]),
         _ => {}

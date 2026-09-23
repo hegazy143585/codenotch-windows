@@ -99,3 +99,9 @@ MIT — see `LICENSE`. The Codenotch design and name belong to the upstream auth
 
 `scripts\build-installer.ps1` builds a per-user NSIS installer that includes `codenotch-hook.exe`.
 CI builds the same installer on every push — see `RELEASE.md`.
+
+## Settings
+
+Tray → **Settings…** (it also opens by itself on first launch): choose which providers appear and in what order,
+store an Ollama Cloud key (kept in Windows Credential Manager), connect Perplexity, install the Claude Code
+hooks, and set language, hover-only and start with Windows.

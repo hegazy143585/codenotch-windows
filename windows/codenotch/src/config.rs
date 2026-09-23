@@ -27,6 +27,12 @@ pub struct Config {
     /// The user connected Perplexity (tray); until then no Perplexity page is ever loaded
     #[serde(default)]
     pub perplexity: bool,
+    /// Provider ids in the order the user arranged them (settings); unnamed ids follow
+    #[serde(default)]
+    pub provider_order: Vec<String>,
+    /// Provider ids the user switched off: no cell in the notch
+    #[serde(default)]
+    pub disabled: Vec<String>,
 }
 
 fn default_notch_y() -> f64 {
@@ -56,6 +62,8 @@ impl Default for Config {
             notch_y: default_notch_y(),
             hover_only: true,
             perplexity: false,
+            provider_order: Vec::new(),
+            disabled: Vec::new(),
         }
     }
 }

@@ -9,8 +9,9 @@
 | Activity engine | `activity.rs`, `watcher.rs`, `state.rs`, `focus.rs` | 2 s tick: pushed events + per-provider probes (Cursor SQLite, Codex rollout files, Claude IO sampling, Antigravity writes) |
 | Event ingress | `server.rs` + `codenotch-hook/` | `127.0.0.1:48666` HTTP. `codenotch-hook.exe <event> [--provider id]` POSTs events; `GET /activity` returns the merged list |
 | UI | `ui/notch.html` | Single-file pill + hover card, no framework |
+| Settings | `settings.rs`, `ui/settings.html` | Provider on/off + order (config `disabled` / `provider_order`, applied by `providers::arrange`), Ollama key in Credential Manager, Perplexity connect, hooks, language, hover-only, autostart; opens with a welcome on first launch |
 | Diagnostics | `doctor.rs`, `diag.rs` | `codenotch.exe doctor` CLI self-check |
-| Config | `config.rs` | `%APPDATA%\codenotch\config.json` |
+| Config | `config.rs` | `%APPDATA%\codenotch\config.json` (secrets never go here: Credential Manager) |
 
 ## Data flow
 Provider thread → its slot in `AppState.usage` → `providers::publish` → event `providers` (the full

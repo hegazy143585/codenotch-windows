@@ -77,6 +77,10 @@ pub fn tr(lang: &str, key: &str) -> &'static str {
         ("ja", "pplx_disconnect") => "Perplexity の接続を解除",
         ("ko", "pplx_disconnect") => "Perplexity 연결 해제",
         (_, "pplx_disconnect") => "Disconnect Perplexity",
+        ("zh", "settings") => "设置…",
+        ("ja", "settings") => "設定…",
+        ("ko", "settings") => "설정…",
+        (_, "settings") => "Settings…",
         _ => "?",
     }
 }

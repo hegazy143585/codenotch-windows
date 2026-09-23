@@ -204,6 +204,48 @@ pub fn cred_read(_target: &str) -> Option<String> {
     None
 }
 
+/// Store a secret for this user (Credential Manager, local persistence). Never written to disk by us.
+#[cfg(windows)]
+pub fn cred_write(target: &str, secret: &str) -> Result<(), String> {
+    use windows::core::PWSTR;
+    use windows::Win32::Security::Credentials::{CredWriteW, CREDENTIALW, CRED_FLAGS, CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC};
+    let mut t: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut user: Vec<u16> = "codenotch".encode_utf16().chain(std::iter::once(0)).collect();
+    let mut blob = secret.as_bytes().to_vec();
+    let c = CREDENTIALW {
+        Flags: CRED_FLAGS(0),
+        Type: CRED_TYPE_GENERIC,
+        TargetName: PWSTR(t.as_mut_ptr()),
+        CredentialBlobSize: blob.len() as u32,
+        CredentialBlob: blob.as_mut_ptr(),
+        Persist: CRED_PERSIST_LOCAL_MACHINE,
+        UserName: PWSTR(user.as_mut_ptr()),
+        ..Default::default()
+    };
+    unsafe { CredWriteW(&c, 0) }.map_err(|e| format!("could not store the key ({e})"))
+}
+#[cfg(not(windows))]
+pub fn cred_write(_target: &str, _secret: &str) -> Result<(), String> {
+    Err("not supported on this platform".into())
+}
+
+/// Remove a stored secret; a missing one is not an error
+#[cfg(windows)]
+pub fn cred_delete(target: &str) -> Result<(), String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Security::Credentials::{CredDeleteW, CRED_TYPE_GENERIC};
+    let t: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();
+    match unsafe { CredDeleteW(PCWSTR(t.as_ptr()), CRED_TYPE_GENERIC, 0) } {
+        Ok(()) => Ok(()),
+        Err(_) if cred_read(target).is_none() => Ok(()),
+        Err(e) => Err(format!("could not remove the key ({e})")),
+    }
+}
+#[cfg(not(windows))]
+pub fn cred_delete(_target: &str) -> Result<(), String> {
+    Ok(())
+}
+
 pub(crate) fn decode_secret(blob: &[u8]) -> Option<String> {
     let text = match std::str::from_utf8(blob) {
         Ok(t) if !t.contains('\0') => t.to_string(),
@@ -306,6 +348,21 @@ mod tests {
         let u16: Vec<u8> = "key-2".encode_utf16().flat_map(|c| c.to_le_bytes()).collect();
         assert_eq!(decode_secret(&u16).as_deref(), Some("key-2"));
         assert_eq!(decode_secret(b""), None);
+    }
+
+    /// Real Credential Manager round trip under a throwaway target, removed at the end
+    #[cfg(windows)]
+    #[test]
+    fn credential_manager_round_trip() {
+        let t = format!("codenotch-test:{}", std::process::id());
+        assert_eq!(cred_read(&t), None);
+        cred_write(&t, "secret-1").unwrap();
+        assert_eq!(cred_read(&t).as_deref(), Some("secret-1"));
+        cred_write(&t, "secret-2").unwrap();
+        assert_eq!(cred_read(&t).as_deref(), Some("secret-2"), "overwrite");
+        cred_delete(&t).unwrap();
+        assert_eq!(cred_read(&t), None);
+        cred_delete(&t).unwrap(); // deleting a missing one is fine
     }
 
     #[test]

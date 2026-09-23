@@ -362,10 +362,26 @@ pub fn list(slots: &Slots, activity: &[Activity], hooks_installed: bool, now: u6
     out
 }
 
+/// Stable sort by position in the user's saved order; ids it does not name keep their place after
+pub fn sort_by_order<T>(items: &mut [T], order: &[String], key: impl Fn(&T) -> &str) {
+    items.sort_by_key(|x| order.iter().position(|o| o == key(x)).unwrap_or(usize::MAX));
+}
+
+/// The user's layout (W-11): switched-off providers leave the notch, the rest follow the saved order
+pub fn arrange(mut l: Vec<ProviderSnapshot>, order: &[String], disabled: &[String]) -> Vec<ProviderSnapshot> {
+    l.retain(|p| !disabled.contains(&p.id));
+    sort_by_order(&mut l, order, |p| p.id.as_str());
+    l
+}
+
 pub fn current(app: &AppHandle) -> Vec<ProviderSnapshot> {
     let st = app.state::<AppState>();
     let activity = st.activity.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    list(&st.usage, &activity, crate::hooks_install::is_installed(), crate::usage::now_ms())
+    let (order, disabled) = {
+        let c = st.cfg.lock().unwrap_or_else(|e| e.into_inner());
+        (c.provider_order.clone(), c.disabled.clone())
+    };
+    arrange(list(&st.usage, &activity, crate::hooks_install::is_installed(), crate::usage::now_ms()), &order, &disabled)
 }
 
 /// Rows that came through the event ingress (probe rows are tagged by `activity::is_pushed`)
@@ -593,6 +609,16 @@ mod tests {
         let o = l.iter().find(|p| p.id == "ollama").unwrap();
         assert!(!o.capabilities.usage);
         assert_eq!(o.capabilities.activity, ActivitySupport::NotSupported);
+    }
+
+    #[test]
+    fn the_saved_layout_orders_and_hides_cells() {
+        let l = list3(&all("ok"), &[act("kilo")]);
+        let order = vec!["kilo".to_string(), "cursor".to_string()];
+        let out = arrange(l, &order, &["codex".to_string()]);
+        let ids: Vec<&str> = out.iter().map(|p| p.id.as_str()).collect();
+        assert_eq!(&ids[..3], &["kilo", "cursor", "claude"]);
+        assert!(!ids.contains(&"codex"));
     }
 
     #[test]

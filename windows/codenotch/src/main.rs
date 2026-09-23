@@ -30,6 +30,7 @@ mod copilot;
 mod grok;
 mod commandcode;
 mod perplexity;
+mod settings;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -653,6 +654,8 @@ fn main() {
         }
     }
 
+    // No config.json yet = first launch on this PC: open settings with a welcome (W-11)
+    let first_run = !config::config_path().exists();
     let cfg = config::load();
     let port = cfg.port;
 
@@ -687,7 +690,15 @@ fn main() {
             log_js,
             focus_session,
             dismiss_session,
-            set_lang
+            set_lang,
+            settings::get_settings,
+            settings::set_provider_enabled,
+            settings::move_provider,
+            settings::set_pref,
+            settings::set_hooks,
+            settings::set_ollama_key,
+            settings::set_perplexity,
+            settings::finish_welcome
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -731,6 +742,10 @@ fn main() {
                     broadcast(&sweeper);
                 }
             });
+            if first_run {
+                settings::mark_first_run();
+                settings::open(&handle);
+            }
             // Persist the config (codenotch-hook reads the port from it)
             {
                 let st = handle.state::<AppState>();
