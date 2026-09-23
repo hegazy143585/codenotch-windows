@@ -261,6 +261,18 @@ mod tests {
         assert!(!looks_like_activity(""));
     }
 
+    /// W-18: the pages run under a CSP; scripts only from the app (Tauri hashes the inline ones)
+    #[test]
+    fn the_app_pages_have_a_strict_script_policy() {
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let csp = conf["app"]["security"]["csp"].as_str().expect("csp must be set, not null");
+        let script = csp.split(';').map(str::trim).find(|d| d.starts_with("script-src")).expect("script-src");
+        assert!(!script.contains("unsafe-inline") && !script.contains("unsafe-eval"), "{script}");
+        for d in ["object-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "connect-src ipc: http://ipc.localhost"] {
+            assert!(csp.contains(d), "missing {d}");
+        }
+    }
+
     #[test]
     fn provider_ids_are_validated() {
         assert!(valid_provider_id("copilot"));
