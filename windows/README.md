@@ -85,10 +85,11 @@ Rules of the road:
 ## Relationship to upstream
 
 This port follows the upstream design spec (`docs/specs/2026-08-28-usage-notch-design.md`)
-and provider semantics. It is developed at
-[Im-Midi/codenotch-windows](https://github.com/Im-Midi/codenotch-windows) and offered to the
-upstream project as its `windows/` tree; the two are kept in sync. The session-detection engine
-originated in [Im-Midi/Pac-Man](https://github.com/Im-Midi/Pac-Man) (MIT).
+and provider semantics. This build is maintained at
+[hegazy143585/codenotch-windows](https://github.com/hegazy143585/codenotch-windows) (app id
+`com.hegazy143585.codenotch`). It is based on the Windows port by
+[Im-Midi/codenotch-windows](https://github.com/Im-Midi/codenotch-windows) (MIT). The session-detection
+engine originated in [Im-Midi/Pac-Man](https://github.com/Im-Midi/Pac-Man) (MIT).
 
 ## License
 

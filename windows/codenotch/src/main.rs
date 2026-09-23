@@ -705,6 +705,7 @@ fn main() {
             }
             tray::setup(&handle)?;
             server::start(handle.clone(), port);
+            std::thread::spawn(autostart::repoint_if_moved); // reg.exe calls: off the UI thread
             watcher::start(handle.clone());
             usage::start(handle.clone());
             claude_desktop::start(handle.clone());

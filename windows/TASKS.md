@@ -18,11 +18,12 @@ Status: FIXED = changed in this repo and unit-tested on Linux; needs a Windows r
 | W-12 | P1 | Freshness | Staleness judged in the UI with fixed windows (5 / 35 min); no offline vs error vs stale distinction; no sleep/wake refresh. | `notch.html` `freshWindow`, `staleOf` | Compute freshness in Rust per provider; refresh on resume | Unit | OPEN |
 | W-13 | P2 | i18n | Card strings ("Resets in", "Usage", "Sign in to…") hardcoded English in `notch.html`; only the tray uses `i18n.rs`. | `notch.html` | Move to the page dictionary | — | OPEN |
 | W-14 | P2 | Tests | No tests for usage parsing in `usage.rs`, `codex.rs`, `cursor.rs`, `antigravity.rs`. | `grep '#[test]'` | Recorded, sanitized fixtures per provider | — | OPEN |
-| W-15 | P2 | Identity | Package metadata points to `Im-Midi/codenotch-windows`, identifier `com.immidi.codenotch`. | `Cargo.toml`, `tauri.conf.json` | Decide: keep (compatible with existing installs) or rebrand | — | DECISION |
+| W-15 | P2 | Identity | Package metadata pointed to `Im-Midi/codenotch-windows`, identifier `com.immidi.codenotch`. | `Cargo.toml`, `tauri.conf.json` | Rebranded to `com.hegazy143585.codenotch` + this repo; upstream credits and MIT notices kept. User data stays in `%APPDATA%\codenotch`. Start-at-sign-in is re-pointed to the installed copy at launch so an old unzipped v0.3.0 can't grab the event port. | 3 unit tests in `autostart.rs` | FIXED — confirm on Windows |
+| W-20 | P1 | Upgrade | Old zip users and installer users: two copies with different app ids can run at once and fight over port 48666. | `server.rs` bind error only logged to stderr | Show a clear message in the UI when the port is taken ("Another Codenotch is running — close it") | Manual | OPEN |
 | W-16 | P2 | Repo | 9 MB `site/Codenotch.dmg` committed to the repo. | `site/` | Move binaries to GitHub Releases | — | OPEN |
 | W-17 | P2 | CI | `cargo audit` runs report-only. | `windows.yml` | Triage findings, then make it blocking | — | OPEN |
 | W-18 | P3 | Security | `csp: null` in `tauri.conf.json`. | `tauri.conf.json` | Set a CSP (inline script/style + `data:` images); verify on Windows | Manual | OPEN |
-| W-19 | P1 | iOS | No iOS code exists. | — | Needs decision: local-only sync vs relay (push/Live Activities need a relay) | — | DECISION |
+| W-19 | — | iOS | No iOS code exists. | — | Deferred by decision: Windows only for now. Revisit sync model (local-only vs relay) when iOS is back in scope. | — | DEFERRED |
 
 ## Good as-is
 - Loopback-only listener; Antigravity's self-signed TLS exception is pinned to `127.0.0.1`.

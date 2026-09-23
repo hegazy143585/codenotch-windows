@@ -3,8 +3,9 @@
 ## Product goal
 Codenotch is a lightweight AI usage and activity monitor. At a glance a user sees which AI tools are
 connected, how much usage is left, when it resets, which tool is working / waiting for them / done,
-and whether each number is current. Targets: Windows (`windows/`, Rust + Tauri 2), macOS (`Sources/`,
-Swift — keep working), and a planned iOS companion.
+and whether each number is current. Current target: Windows (`windows/`, Rust + Tauri 2). Keep macOS (`Sources/`, Swift) working. iOS is
+out of scope for now — don't add iOS work unless asked.
+App id: `com.hegazy143585.codenotch`. User data lives in `%APPDATA%\codenotch` — never move it without a migration.
 
 ## Rules
 - Inspect before modifying. Don't rewrite working features without a stated reason.
