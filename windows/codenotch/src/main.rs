@@ -24,6 +24,7 @@ mod gemini_api;
 mod ollama_local;
 mod remote;
 mod glm;
+mod ollama_cloud;
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};

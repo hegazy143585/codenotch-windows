@@ -152,11 +152,18 @@ static GLM: Simple = Simple {
     load: crate::glm::load_persisted, start: crate::glm::start, refresh: crate::glm::request_refresh,
 };
 
+/// ollama.com/api/usage with the user's own key (env or Credential Manager) (ollama_cloud.rs)
+static OLLAMA_CLOUD: Simple = Simple {
+    id: crate::ollama_cloud::ID, name: "Ollama Cloud", glyph: "Ol", page_url: "https://ollama.com/settings",
+    has_usage: true, activity: ActivitySupport::NotSupported,
+    load: crate::ollama_cloud::load_persisted, start: crate::ollama_cloud::start, refresh: crate::ollama_cloud::request_refresh,
+};
+
 /// The API pollers read every 5 min while idle; two missed polls plus slack
 const DEFAULT_FRESH_MS: u64 = 11 * 60_000;
 
 /// Order = top to bottom in the pill
-pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &GLM];
+pub static REGISTRY: &[&dyn Provider] = &[&Claude, &Codex, &Cursor, &Antigravity, &GEMINI_API, &OLLAMA_LOCAL, &OLLAMA_CLOUD, &GLM];
 
 pub fn find(id: &str) -> Option<&'static dyn Provider> {
     REGISTRY.iter().copied().find(|p| p.id() == id)
@@ -484,12 +491,12 @@ mod tests {
     #[test]
     fn installed_providers_keep_registry_order() {
         let ids: Vec<String> = list3(&all("ok"), &[]).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "glm"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "gemini-api", "ollama", "ollama-cloud", "glm"]);
     }
 
     #[test]
     fn a_failed_provider_is_still_listed_with_its_status() {
-        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("glm", snap("absent"))]);
+        let slots = Slots::from(vec![("claude", snap("ok")), ("codex", snap("error")), ("cursor", snap("needsAuth")), ("gemini", snap("absent")), ("gemini-api", snap("absent")), ("ollama", snap("absent")), ("ollama-cloud", snap("absent")), ("glm", snap("absent"))]);
         let l = list3(&slots, &[]);
         assert_eq!(l.iter().map(|p| p.usage.status.as_str()).collect::<Vec<_>>(), vec!["ok", "error", "needsAuth"]);
     }

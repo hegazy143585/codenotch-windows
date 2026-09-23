@@ -31,10 +31,11 @@ computed in Rust (`providers::freshness`); windows whose reset passed after the 
 | Gemini API | Token counts from Gemini CLI chats, OpenCode and Hermes SQLite logs (`gemini_api.rs`); no network, key never read | Local files | none (`not_supported`) unless pushed | — |
 | Ollama (local) | `GET /api/ps` on the loopback Ollama server (`ollama_local.rs`); loaded models, no quota (`capabilities.usage = false`) | Official local API | none (`not_supported`) unless pushed | — |
 | GLM (Z.ai) | `<console>/api/monitor/usage/quota/limit` with the plan key from Claude Code settings (Z.ai base URL only), ZCode or OpenCode (`glm.rs`) | Unofficial API | none unless pushed | — |
+| Ollama Cloud | `ollama.com/api/usage` with `OLLAMA_API_KEY` or Credential Manager `codenotch:ollama-api-key` (`ollama_cloud.rs`) | Vendor API, user's own key | none unless pushed | — |
 | Any other tool | none | — | `codenotch-hook --provider <id>` | Event (manual wiring) |
 
-The macOS app supports more providers (Ollama cloud, Grok, OpenCode, Command Code, GitHub Copilot,
-Perplexity). Gemini API, Ollama (local runtime) and GLM are ported (W-07); the others are not yet.
+The macOS app supports more providers (Grok, OpenCode, Command Code, GitHub Copilot,
+Perplexity). Gemini API, Ollama (local runtime and cloud) and GLM are ported (W-07); the others are not yet.
 
 ## Why live activity is inconsistent
 Only Claude has a reliable event source (hooks). Codex, Cursor, and Antigravity are inferred from file

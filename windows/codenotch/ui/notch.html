@@ -227,6 +227,7 @@ function resetCopy(ms){
 function compact(n){ return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'k':String(n); }
 function countCopy(w){
   if(w.unit==='tokens') return `~${compact(w.count)} tokens`;
+  if(w.unit==='requests') return `${compact(w.count)} request${w.count===1?'':'s'}`;
   return w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today';
 }
 function ago(ageMs){ // age in ms → "5m ago"

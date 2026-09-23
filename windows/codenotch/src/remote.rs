@@ -176,6 +176,43 @@ pub fn call(resp: Result<ureq::Response, ureq::Error>, auth_note: &str, ok: impl
     }
 }
 
+// ---------------- Windows Credential Manager (keys the user gives Codenotch itself) ----------------
+
+/// A generic credential's secret as text (UTF-8, or UTF-16LE as other writers store it)
+#[cfg(windows)]
+pub fn cred_read(target: &str) -> Option<String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Security::Credentials::{CredFree, CredReadW, CREDENTIALW, CRED_TYPE_GENERIC};
+    let t: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut p: *mut CREDENTIALW = std::ptr::null_mut();
+    unsafe {
+        if CredReadW(PCWSTR(t.as_ptr()), CRED_TYPE_GENERIC, 0, &mut p).is_err() || p.is_null() {
+            return None;
+        }
+        let c = &*p;
+        let blob = if c.CredentialBlobSize > 0 && !c.CredentialBlob.is_null() {
+            std::slice::from_raw_parts(c.CredentialBlob, c.CredentialBlobSize as usize).to_vec()
+        } else {
+            Vec::new()
+        };
+        CredFree(p as *const core::ffi::c_void);
+        decode_secret(&blob)
+    }
+}
+#[cfg(not(windows))]
+pub fn cred_read(_target: &str) -> Option<String> {
+    None
+}
+
+pub(crate) fn decode_secret(blob: &[u8]) -> Option<String> {
+    let text = match std::str::from_utf8(blob) {
+        Ok(t) if !t.contains('\0') => t.to_string(),
+        _ => String::from_utf16_lossy(&blob.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect::<Vec<_>>()),
+    };
+    let t = text.trim_matches('\0').trim().to_string();
+    (!t.is_empty()).then_some(t)
+}
+
 // ---------------- small readers shared by the adapters ----------------
 
 pub fn home_json(parts: &[&str]) -> Option<serde_json::Value> {
@@ -261,6 +298,14 @@ mod tests {
     fn needs_auth_keeps_windows_for_context_but_says_sign_in() {
         let s = apply(&with_reading(), Fetch::NeedsAuth("sign in".into()), 100, 0);
         assert_eq!(s.status, "needsAuth");
+    }
+
+    #[test]
+    fn secrets_decode_from_utf8_or_utf16() {
+        assert_eq!(decode_secret(b"key-1 ").as_deref(), Some("key-1"));
+        let u16: Vec<u8> = "key-2".encode_utf16().flat_map(|c| c.to_le_bytes()).collect();
+        assert_eq!(decode_secret(&u16).as_deref(), Some("key-2"));
+        assert_eq!(decode_secret(b""), None);
     }
 
     #[test]

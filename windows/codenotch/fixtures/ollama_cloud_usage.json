@@ -1,0 +1,29 @@
+{
+  "activity": {
+    "cost": "0.00000",
+    "period": {
+      "type": "last_4_weeks",
+      "starting_at": "2026-08-17T00:00:00Z",
+      "ending_at": "2026-09-08T08:28:05Z"
+    }
+  },
+  "limits": {
+    "monthly": {
+      "usage": 0.152,
+      "models": [
+        {
+          "name": "glm-5.3",
+          "request_count": 468
+        },
+        {
+          "name": "gpt-oss:120b",
+          "request_count": 12
+        },
+        {
+          "name": "unused",
+          "request_count": 0
+        }
+      ]
+    }
+  }
+}
