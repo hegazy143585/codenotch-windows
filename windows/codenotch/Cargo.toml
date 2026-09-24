@@ -1,6 +1,6 @@
 [package]
 name = "codenotch"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Codenotch for Windows — AI coding usage and activity notch (Claude, Codex, Cursor, Copilot, Gemini and more)"
 license = "MIT"

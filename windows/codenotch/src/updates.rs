@@ -124,6 +124,17 @@ mod tests {
         }
     }
 
+    /// The 0.4.0 release shipped latest.json with version ".4.0" because the workflow sliced the
+    /// tag one character too far. The manifest version must come from tauri.conf.json, checked
+    /// against the tag, so the updater always gets a valid semver.
+    #[test]
+    fn the_release_manifest_takes_its_version_from_the_app_config() {
+        let wf = include_str!("../../../.github/workflows/windows.yml");
+        assert!(!wf.contains(".Substring("), "the version must not be cut out of the tag name");
+        assert!(wf.contains("codenotch/tauri.conf.json"), "read the version from the app config");
+        assert!(wf.contains("-ne \"win-v$version\""), "a tag that does not match the version must fail the release");
+    }
+
     #[test]
     fn checks_are_spaced_hours_apart() {
         assert!(super::CHECK_EVERY_SECS >= 3600);
